@@ -123,6 +123,30 @@ fi'
 patch_zshrc "zsh-autosuggestions.zsh" \
 'source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh'
 
+patch_zshrc "pastefile()" \
+'# Paste clipboard content directly into a file (bypasses nano paste corruption)
+# Usage: pastefile ~/themes.json
+# For JSON: validates and pretty-prints before saving
+pastefile() {
+  local target="$1"
+  [[ -z "$target" ]] && { echo "Usage: pastefile <file>"; return 1; }
+  local content
+  content="$(pbpaste)"
+  if [[ "$target" == *.json ]]; then
+    local pretty
+    pretty="$(echo "$content" | python3 -m json.tool 2>&1)"
+    if [[ $? -ne 0 ]]; then
+      echo "Invalid JSON — not saved. Error:"
+      echo "$pretty"
+      return 1
+    fi
+    echo "$pretty" > "$target"
+  else
+    echo "$content" > "$target"
+  fi
+  echo "Saved to $target"
+}'
+
 patch_zshrc "tmux attach-session -t main" \
 '# Auto-attach or start a tmux session (skip if already inside tmux)
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
