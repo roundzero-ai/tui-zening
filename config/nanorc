@@ -1,0 +1,8 @@
+# Disable auto-indent so pasted content is not reformatted
+set noautoindent
+
+# Show line numbers
+set linenumbers
+
+# Smooth scrolling
+set smooth

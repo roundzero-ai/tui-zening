@@ -93,6 +93,9 @@ mkdir -p "$HOME/.config/tmux/scripts"
 cp "$SCRIPT_DIR/config/scripts/ram_usage.sh" "$HOME/.config/tmux/scripts/ram_usage.sh"
 chmod +x "$HOME/.config/tmux/scripts/ram_usage.sh"
 
+info "Copying nanorc → ~/.nanorc"
+cp "$SCRIPT_DIR/config/nanorc" "$HOME/.nanorc"
+
 # ── 8. Install tmux plugins ───────────────────────────────────────────────────
 info "Installing tmux plugins via TPM..."
 "$HOME/.tmux/plugins/tpm/bin/install_plugins"
