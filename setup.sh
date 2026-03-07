@@ -262,20 +262,7 @@ fi
 cp "$SCRIPT_DIR/config/nanorc" "$HOME/.nanorc"
 info "nanorc deployed → ~/.nanorc"
 
-# ── 10. Linux clipboard tool ──────────────────────────────────
-if [[ "$OS" == "Linux" ]]; then
-    if [[ -n "${WAYLAND_DISPLAY:-}" ]]; then
-        install_pkg wl-paste wl-clipboard
-        CLIPBOARD_GET="wl-paste"
-    else
-        install_pkg xclip xclip
-        CLIPBOARD_GET="xclip -selection clipboard -o"
-    fi
-else
-    CLIPBOARD_GET="pbpaste"
-fi
-
-# ── 11. Yazi file manager (opt-in via --yazi) ─────────────────
+# ── 10. Yazi file manager (opt-in via --yazi) ────────────────
 if [[ "$INSTALL_YAZI" == true ]]; then
     if command -v yazi &>/dev/null; then
         info "yazi — already installed."
@@ -302,7 +289,7 @@ if [[ "$INSTALL_YAZI" == true ]]; then
     fi
 fi
 
-# ── 12. Patch shell RC file (idempotent) ──────────────────────
+# ── 11. Patch shell RC file (idempotent) ──────────────────────
 OMP_CONFIG="$HOME/.config/oh-my-posh/zengarden.json"
 touch "$RC_FILE"
 
@@ -342,23 +329,6 @@ fi"
 if [[ -n "$ZSH_AUTOSUGGEST_SOURCE" ]]; then
     patch_rc "zsh-autosuggestions.zsh" "$ZSH_AUTOSUGGEST_SOURCE"
 fi
-
-# pastefile helper
-patch_rc "pastefile()" \
-"# Paste clipboard into a file; validates JSON before saving
-pastefile() {
-  local target=\"\$1\"
-  [[ -z \"\$target\" ]] && { echo \"Usage: pastefile <file>\"; return 1; }
-  local content=\"\$(${CLIPBOARD_GET})\"
-  if [[ \"\$target\" == *.json ]]; then
-    local pretty=\"\$(echo \"\$content\" | python3 -m json.tool 2>&1)\"
-    if [[ \$? -ne 0 ]]; then echo \"Invalid JSON — not saved:\"; echo \"\$pretty\"; return 1; fi
-    echo \"\$pretty\" > \"\$target\"
-  else
-    echo \"\$content\" > \"\$target\"
-  fi
-  echo \"Saved to \$target\"
-}"
 
 # tmux auto-attach on Ghostty (local macOS)
 if [[ "$OS" == "Darwin" ]]; then
