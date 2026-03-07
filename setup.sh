@@ -307,6 +307,12 @@ patch_rc() {
 patch_rc "TERM=xterm-256color" \
 'export TERM=xterm-256color'
 
+# CLICOLOR — enable color ls on macOS (BSD ls uses CLICOLOR, not --color)
+if [[ "$OS" == "Darwin" ]]; then
+    patch_rc "CLICOLOR=1" \
+'export CLICOLOR=1'
+fi
+
 # PATH — ~/.local/bin for oh-my-posh + yazi on Linux
 if [[ "$OS" == "Linux" ]]; then
     patch_rc ".local/bin" \
