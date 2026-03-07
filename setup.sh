@@ -257,12 +257,14 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
                 fi
 
                 # Build Ghostty
-                # -fno-sys=gtk4-layer-shell: compile gtk4-layer-shell from source
-                # (required on Ubuntu 24.04 which doesn't package it)
-                info "Compiling Ghostty..."
+                # -fno-sys=gtk4-layer-shell:    Ubuntu 24.04 doesn't package this
+                # -fno-sys=blueprint-compiler:  system blueprint 0.12 too old for
+                #                              Ghostty 1.x which needs blueprint 1.x
+                info "Compiling Ghostty (this takes several minutes)..."
                 cd "$GHOSTTY_SRC"
-                "$ZIG_BIN" build -Doptimize=ReleaseFast -fno-sys=gtk4-layer-shell 2>/dev/null \
-                    || "$ZIG_BIN" build -Doptimize=ReleaseFast
+                "$ZIG_BIN" build -Doptimize=ReleaseFast \
+                    -fno-sys=gtk4-layer-shell \
+                    -fno-sys=blueprint-compiler
                 cd - >/dev/null
 
                 # Install binary
