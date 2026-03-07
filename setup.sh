@@ -227,8 +227,13 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
                 fi
 
                 # Read the exact Zig version Ghostty requires
-                ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]')
-                [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.0"
+                # (Ghostty 1.x uses minimum_zig_version in build.zig.zon, no .zig-version file)
+                ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]') || true
+                if [[ -z "$ZIG_VERSION" ]]; then
+                    # Extract from build.zig.zon
+                    ZIG_VERSION=$(grep -oP '(?<=minimum_zig_version = ")[^"]+' "$GHOSTTY_SRC/build.zig.zon" 2>/dev/null) || true
+                fi
+                [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.2"
                 info "Ghostty requires Zig $ZIG_VERSION"
 
                 # Zig arch name (uname -m returns aarch64 on DGX Spark)
@@ -238,13 +243,14 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
                     *) die "Unsupported arch for Zig: $ARCH" ;;
                 esac
 
-                # Install Zig if not present or wrong version
-                ZIG_DIR="$HOME/.local/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}"
+                # Zig 0.13+ uses zig-ARCH-linux-VERSION naming (old: zig-linux-ARCH-VERSION)
+                ZIG_TARBALL="zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz"
+                ZIG_DIR="$HOME/.local/zig/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}"
                 ZIG_BIN="$ZIG_DIR/zig"
                 if [[ ! -f "$ZIG_BIN" ]]; then
                     info "Installing Zig $ZIG_VERSION ($ZIG_ARCH)..."
                     mkdir -p "$HOME/.local/zig"
-                    curl -fL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
+                    curl -fL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}" \
                         | tar -xJ -C "$HOME/.local/zig"
                 else
                     info "Zig $ZIG_VERSION — already installed."
