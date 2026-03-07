@@ -123,7 +123,6 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 | Block | Marker used for deduplication |
 |---|---|
 | `export TERM=xterm-256color` | `TERM=xterm-256color` |
-| Disable Ctrl-s flow control | `stty -ixon` |
 | `export PATH="$HOME/.local/bin:$PATH"` | `.local/bin` (Linux only) |
 | oh-my-posh prompt init | `oh-my-posh init` |
 | zsh-autosuggestions source | `zsh-autosuggestions.zsh` (zsh only) |
@@ -158,29 +157,34 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 ### Status Bar
 
 ```
- ≋ ZenGarden │ user@host        dim-1:win  dim-2:win  ╭ 3:active ╮  dim-4:win
-  session                      git ⎇ branch  CPU 18%  MEM 12G  GPU 20%  14:35 Fri
+ ≋ ZenGarden  user@host     1:project  2:folder>nvim  3:user@remote
+  session     git ⎇ branch  CPU 18%  MEM 8.2G 51%  GPU 20%  14:35 Fri
 ```
 
-- **Line 0** — Brand pill + identity (left) · Colored window tabs per window (right)
-- **Line 1** — Session pill (left) · git · CPU · RAM · GPU · time (right)
+- **Line 0** — Brand pill + identity (left) · Colored window tabs (right)
+- **Line 1** — Session pill (left) · git · CPU · RAM % · GPU · time (right)
+- **Window tab labels**: idle shell → `folder` · program running → `folder>program` · SSH → `user@host`
 - GPU stats: `ioreg` on Apple Silicon (no sudo) · `nvidia-smi` on DGX Spark (UMA-aware for GB10)
 
 ### Key Bindings
 
 | Action | Key |
 |---|---|
-| Prefix | `Ctrl-s` |
+| Prefix | `Ctrl-Space` |
 | Navigate panes | `Alt+h/j/k/l` (no prefix) or `prefix + h/j/k/l` |
 | Resize pane (coarse) | `prefix + H/J/K/L` |
+| Resize pane (fine) | `prefix + Alt+H/J/K/L` |
 | Split horizontal | `prefix + \|` |
 | Split vertical | `prefix + -` |
+| Bottom pane 25% | `prefix + _` — creates if none, focuses if exists |
+| Right pane 33% | `prefix + \` — creates if none, focuses if exists |
 | Zoom pane | `prefix + z` |
 | Switch window | `Alt+1` – `Alt+9` |
 | Prev / next window | `Alt+[` / `Alt+]` |
 | Last window | `prefix + Tab` |
 | Reload config | `prefix + r` |
 | Copy mode | `prefix + [` → `v` select → `y` yank |
+| Nested tmux toggle | `F12` — suspend/resume local key interception |
 
 ---
 

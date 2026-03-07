@@ -320,11 +320,6 @@ patch_rc() {
 patch_rc "TERM=xterm-256color" \
 'export TERM=xterm-256color'
 
-# Disable Ctrl-s flow control (required for tmux Ctrl-s prefix)
-patch_rc "stty -ixon" \
-'# Disable Ctrl-s flow control so tmux Ctrl-s prefix works
-stty -ixon 2>/dev/null || true'
-
 # PATH — ~/.local/bin for oh-my-posh + yazi on Linux
 if [[ "$OS" == "Linux" ]]; then
     patch_rc ".local/bin" \
@@ -399,6 +394,8 @@ echo "  • Reload shell:  source $RC_FILE"
 echo "  • Start tmux:    tmux new -s main"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
-echo "  Prefix: Ctrl-s  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
+echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
+echo "  Bottom pane 25%: prefix+_  |  Right pane 33%: prefix+\\"
 echo "  Resize: prefix+H/J/K/L  |  Windows: Alt+1-9  |  Zoom: prefix+z"
+echo "  Nested tmux: F12 toggles key passthrough to inner session"
 echo ""
