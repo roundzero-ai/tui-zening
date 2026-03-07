@@ -86,7 +86,7 @@ bash setup.sh --headless
 bash setup.sh
 ```
 
-Ghostty is **built from source** on Linux using Zig. This takes a few minutes on first run. The script:
+On Linux, the script first tries to install Ghostty via the system package manager (`apt install ghostty`). If that fails (package not available), it falls back to **building from source** using Zig. The source build:
 1. Installs build dependencies (`libgtk-4-dev`, `libadwaita-1-dev`, etc.)
 2. Clones `github.com/ghostty-org/ghostty`
 3. Downloads the exact Zig version required (read from `.zig-version` in source)

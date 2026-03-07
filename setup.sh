@@ -198,62 +198,74 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
         GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
         mkdir -p "$GHOSTTY_CONF_DIR"
     else
-        # Linux: build Ghostty from source (works on ARM64 DGX Spark GB10)
+        # Linux: try official package first, fall back to building from source
         if ! command -v ghostty &>/dev/null; then
-            info "Building Ghostty from source (this takes a few minutes)..."
+            GHOSTTY_INSTALLED=false
 
-            # System build dependencies
-            $PM_INSTALL libgtk-4-dev libadwaita-1-dev blueprint-compiler \
-                        gettext libxml2-utils xz-utils pkg-config
-
-            # Clone or update Ghostty source
-            GHOSTTY_SRC="$HOME/Projects/ghostty_src"
-            if [[ ! -d "$GHOSTTY_SRC/.git" ]]; then
-                git clone --depth=1 https://github.com/ghostty-org/ghostty.git "$GHOSTTY_SRC"
-            else
-                info "Updating Ghostty source..."
-                git -C "$GHOSTTY_SRC" pull --ff-only
+            # Try official installation first (apt, or distro package)
+            info "Trying official Ghostty package..."
+            if $PM_INSTALL ghostty 2>/dev/null && command -v ghostty &>/dev/null; then
+                GHOSTTY_INSTALLED=true
+                success "Ghostty installed via package manager."
             fi
 
-            # Read the exact Zig version Ghostty requires
-            ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]')
-            [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.0"
-            info "Ghostty requires Zig $ZIG_VERSION"
+            # Fallback: build from source (works on ARM64 DGX Spark GB10)
+            if [[ "$GHOSTTY_INSTALLED" == false ]]; then
+                info "Official package not available — building Ghostty from source (this takes a few minutes)..."
 
-            # Zig arch name (uname -m returns aarch64 on DGX Spark)
-            case "$ARCH" in
-                aarch64|arm64) ZIG_ARCH="aarch64" ;;
-                x86_64)        ZIG_ARCH="x86_64" ;;
-                *) die "Unsupported arch for Zig: $ARCH" ;;
-            esac
+                # System build dependencies
+                $PM_INSTALL libgtk-4-dev libadwaita-1-dev blueprint-compiler \
+                            gettext libxml2-utils xz-utils pkg-config
 
-            # Install Zig if not present or wrong version
-            ZIG_DIR="$HOME/.local/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}"
-            ZIG_BIN="$ZIG_DIR/zig"
-            if [[ ! -f "$ZIG_BIN" ]]; then
-                info "Installing Zig $ZIG_VERSION ($ZIG_ARCH)..."
-                mkdir -p "$HOME/.local/zig"
-                curl -fL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
-                    | tar -xJ -C "$HOME/.local/zig"
-            else
-                info "Zig $ZIG_VERSION — already installed."
+                # Clone or update Ghostty source
+                GHOSTTY_SRC="$HOME/Projects/ghostty_src"
+                if [[ ! -d "$GHOSTTY_SRC/.git" ]]; then
+                    git clone --depth=1 https://github.com/ghostty-org/ghostty.git "$GHOSTTY_SRC"
+                else
+                    info "Updating Ghostty source..."
+                    git -C "$GHOSTTY_SRC" pull --ff-only
+                fi
+
+                # Read the exact Zig version Ghostty requires
+                ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]')
+                [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.0"
+                info "Ghostty requires Zig $ZIG_VERSION"
+
+                # Zig arch name (uname -m returns aarch64 on DGX Spark)
+                case "$ARCH" in
+                    aarch64|arm64) ZIG_ARCH="aarch64" ;;
+                    x86_64)        ZIG_ARCH="x86_64" ;;
+                    *) die "Unsupported arch for Zig: $ARCH" ;;
+                esac
+
+                # Install Zig if not present or wrong version
+                ZIG_DIR="$HOME/.local/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}"
+                ZIG_BIN="$ZIG_DIR/zig"
+                if [[ ! -f "$ZIG_BIN" ]]; then
+                    info "Installing Zig $ZIG_VERSION ($ZIG_ARCH)..."
+                    mkdir -p "$HOME/.local/zig"
+                    curl -fL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
+                        | tar -xJ -C "$HOME/.local/zig"
+                else
+                    info "Zig $ZIG_VERSION — already installed."
+                fi
+
+                # Build Ghostty
+                # -fno-sys=gtk4-layer-shell: compile gtk4-layer-shell from source
+                # (required on Ubuntu 24.04 which doesn't package it)
+                info "Compiling Ghostty..."
+                cd "$GHOSTTY_SRC"
+                "$ZIG_BIN" build -Doptimize=ReleaseFast -fno-sys=gtk4-layer-shell 2>/dev/null \
+                    || "$ZIG_BIN" build -Doptimize=ReleaseFast
+                cd - >/dev/null
+
+                # Install binary
+                mkdir -p "$HOME/.local/bin"
+                cp "$GHOSTTY_SRC/zig-out/bin/ghostty" "$HOME/.local/bin/ghostty"
+                chmod +x "$HOME/.local/bin/ghostty"
+                export PATH="$HOME/.local/bin:$PATH"
+                success "Ghostty built → ~/.local/bin/ghostty"
             fi
-
-            # Build Ghostty
-            # -fno-sys=gtk4-layer-shell: compile gtk4-layer-shell from source
-            # (required on Ubuntu 24.04 which doesn't package it)
-            info "Compiling Ghostty..."
-            cd "$GHOSTTY_SRC"
-            "$ZIG_BIN" build -Doptimize=ReleaseFast -fno-sys=gtk4-layer-shell 2>/dev/null \
-                || "$ZIG_BIN" build -Doptimize=ReleaseFast
-            cd - >/dev/null
-
-            # Install binary
-            mkdir -p "$HOME/.local/bin"
-            cp "$GHOSTTY_SRC/zig-out/bin/ghostty" "$HOME/.local/bin/ghostty"
-            chmod +x "$HOME/.local/bin/ghostty"
-            export PATH="$HOME/.local/bin:$PATH"
-            success "Ghostty built → ~/.local/bin/ghostty"
         else
             info "Ghostty — already installed."
         fi
