@@ -198,100 +198,42 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
         GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
         mkdir -p "$GHOSTTY_CONF_DIR"
     else
-        # Linux: try official package first, fall back to building from source
+        # Linux: try package manager first, then snap
         if ! command -v ghostty &>/dev/null; then
-            GHOSTTY_INSTALLED=false
-
-            # Try official installation first (apt, or distro package)
             info "Trying official Ghostty package..."
             if $PM_INSTALL ghostty 2>/dev/null && command -v ghostty &>/dev/null; then
-                GHOSTTY_INSTALLED=true
                 success "Ghostty installed via package manager."
-            fi
-
-            # Fallback: build from source (works on ARM64 DGX Spark GB10)
-            if [[ "$GHOSTTY_INSTALLED" == false ]]; then
-                info "Official package not available — building Ghostty from source (this takes a few minutes)..."
-
-                # System build dependencies
-                $PM_INSTALL libgtk-4-dev libadwaita-1-dev blueprint-compiler \
-                            gettext libxml2-utils xz-utils pkg-config
-
-                # Clone or update Ghostty source
-                GHOSTTY_SRC="$HOME/Projects/ghostty_src"
-                if [[ ! -d "$GHOSTTY_SRC/.git" ]]; then
-                    git clone --depth=1 https://github.com/ghostty-org/ghostty.git "$GHOSTTY_SRC"
-                else
-                    info "Updating Ghostty source..."
-                    git -C "$GHOSTTY_SRC" pull --ff-only
-                fi
-
-                # Read the exact Zig version Ghostty requires
-                # (Ghostty 1.x uses minimum_zig_version in build.zig.zon, no .zig-version file)
-                ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]') || true
-                if [[ -z "$ZIG_VERSION" ]]; then
-                    # Extract from build.zig.zon
-                    ZIG_VERSION=$(grep -oP '(?<=minimum_zig_version = ")[^"]+' "$GHOSTTY_SRC/build.zig.zon" 2>/dev/null) || true
-                fi
-                [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.2"
-                info "Ghostty requires Zig $ZIG_VERSION"
-
-                # Zig arch name (uname -m returns aarch64 on DGX Spark)
-                case "$ARCH" in
-                    aarch64|arm64) ZIG_ARCH="aarch64" ;;
-                    x86_64)        ZIG_ARCH="x86_64" ;;
-                    *) die "Unsupported arch for Zig: $ARCH" ;;
-                esac
-
-                # Zig 0.13+ uses zig-ARCH-linux-VERSION naming (old: zig-linux-ARCH-VERSION)
-                ZIG_TARBALL="zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz"
-                ZIG_DIR="$HOME/.local/zig/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}"
-                ZIG_BIN="$ZIG_DIR/zig"
-                if [[ ! -f "$ZIG_BIN" ]]; then
-                    info "Installing Zig $ZIG_VERSION ($ZIG_ARCH)..."
-                    mkdir -p "$HOME/.local/zig"
-                    curl -fL "https://ziglang.org/download/${ZIG_VERSION}/${ZIG_TARBALL}" \
-                        | tar -xJ -C "$HOME/.local/zig"
-                else
-                    info "Zig $ZIG_VERSION — already installed."
-                fi
-
-                # Build Ghostty
-                # -fno-sys=gtk4-layer-shell:    Ubuntu 24.04 doesn't package this
-                # -fno-sys=blueprint-compiler:  system blueprint 0.12 too old for
-                #                              Ghostty 1.x which needs blueprint 1.x
-                info "Compiling Ghostty (this takes several minutes)..."
-                cd "$GHOSTTY_SRC"
-                "$ZIG_BIN" build -Doptimize=ReleaseFast \
-                    -fno-sys=gtk4-layer-shell \
-                    -fno-sys=blueprint-compiler
-                cd - >/dev/null
-
-                # Install binary
-                mkdir -p "$HOME/.local/bin"
-                cp "$GHOSTTY_SRC/zig-out/bin/ghostty" "$HOME/.local/bin/ghostty"
-                chmod +x "$HOME/.local/bin/ghostty"
-                export PATH="$HOME/.local/bin:$PATH"
-                success "Ghostty built → ~/.local/bin/ghostty"
+            elif command -v snap &>/dev/null; then
+                info "Package manager failed — trying snap..."
+                sudo snap install ghostty --classic
+                success "Ghostty installed via snap."
+            else
+                warn "Ghostty not available — skipping."
+                warn "Install manually: https://ghostty.org/docs/install/binary"
+                SKIP_GHOSTTY=true
             fi
         else
             info "Ghostty — already installed."
         fi
 
-        # Deploy config (Linux path: ~/.config/ghostty/config)
-        GHOSTTY_CONF_DIR="$HOME/.config/ghostty"
-        GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
-        mkdir -p "$GHOSTTY_CONF_DIR"
+        if [[ "$SKIP_GHOSTTY" == false ]]; then
+            # Deploy config (Linux path: ~/.config/ghostty/config)
+            GHOSTTY_CONF_DIR="$HOME/.config/ghostty"
+            GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
+            mkdir -p "$GHOSTTY_CONF_DIR"
+        fi
     fi
 
     # Back up and deploy Ghostty config
-    if [[ -f "$GHOSTTY_CONF" ]]; then
-        bak="${GHOSTTY_CONF}.bak.$(date +%Y%m%d_%H%M%S)"
-        cp "$GHOSTTY_CONF" "$bak"
-        info "Ghostty config backed up → $bak"
+    if [[ "$SKIP_GHOSTTY" == false ]]; then
+        if [[ -f "$GHOSTTY_CONF" ]]; then
+            bak="${GHOSTTY_CONF}.bak.$(date +%Y%m%d_%H%M%S)"
+            cp "$GHOSTTY_CONF" "$bak"
+            info "Ghostty config backed up → $bak"
+        fi
+        cp "$SCRIPT_DIR/config/ghostty" "$GHOSTTY_CONF"
+        success "Ghostty config deployed → $GHOSTTY_CONF"
     fi
-    cp "$SCRIPT_DIR/config/ghostty" "$GHOSTTY_CONF"
-    success "Ghostty config deployed → $GHOSTTY_CONF"
 else
     info "Skipping Ghostty."
 fi
