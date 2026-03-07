@@ -6,9 +6,12 @@
 #
 #  Safe to run repeatedly — all steps are idempotent.
 #
-#  Usage:  bash setup.sh [--no-ghostty] [--no-fonts]
-#    --no-ghostty   skip Ghostty config (e.g. on remote machines)
-#    --no-fonts     skip font installation
+#  Usage:  bash setup.sh [options]
+#
+#  Options:
+#    --no-ghostty   skip Ghostty config (auto-skipped on headless Linux)
+#    --no-fonts     skip font installation (auto-skipped on headless Linux)
+#    --yazi         install yazi file manager (opt-in)
 # ============================================================
 
 set -euo pipefail
@@ -30,10 +33,12 @@ die()     { echo -e "${RED}[tui_zening] ERROR:${RESET} $1"; exit 1; }
 # ── Parse flags ───────────────────────────────────────────────
 SKIP_GHOSTTY=false
 SKIP_FONTS=false
+INSTALL_YAZI=false
 for arg in "$@"; do
     case "$arg" in
         --no-ghostty) SKIP_GHOSTTY=true ;;
         --no-fonts)   SKIP_FONTS=true ;;
+        --yazi)       INSTALL_YAZI=true ;;
     esac
 done
 
@@ -48,17 +53,27 @@ echo -e "${RESET}"
 echo "  Ghostty · oh-my-posh · tmux ZenGarden — Mac + DGX Spark"
 echo ""
 
-# ── 0. Detect OS & environment ────────────────────────────────
+# ── 0. Detect OS, architecture, and shell ────────────────────
 OS="$(uname)"
 ARCH="$(uname -m)"
 [[ "$OS" == "Darwin" || "$OS" == "Linux" ]] || die "Unsupported OS: $OS"
-info "Detected: $OS / $ARCH"
 
-# Headless Linux (DGX Spark, remote servers): skip Ghostty and fonts
+# Detect the user's default shell (bash on DGX Spark/Ubuntu, zsh on macOS)
+CURRENT_SHELL="$(basename "${SHELL:-bash}")"
+if [[ "$CURRENT_SHELL" == "zsh" ]]; then
+    RC_FILE="$HOME/.zshrc"
+else
+    RC_FILE="$HOME/.bashrc"
+    CURRENT_SHELL="bash"   # normalise (handles fish, sh, etc. falling back to bash)
+fi
+
+info "Detected: $OS / $ARCH / $CURRENT_SHELL → patching $RC_FILE"
+
+# Headless Linux (DGX Spark, remote servers): auto-skip Ghostty and fonts
 if [[ "$OS" == "Linux" && -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
     SKIP_GHOSTTY=true
     SKIP_FONTS=true
-    info "Headless Linux detected — skipping Ghostty config and fonts."
+    info "Headless Linux — skipping Ghostty config and fonts."
 fi
 
 # ── Linux: package manager ────────────────────────────────────
@@ -79,18 +94,7 @@ if [[ "$OS" == "Linux" ]]; then
     $PM_UPDATE
 fi
 
-# ── 1. Homebrew (macOS only) ──────────────────────────────────
-if [[ "$OS" == "Darwin" ]]; then
-    if ! command -v brew &>/dev/null; then
-        info "Installing Homebrew..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        [[ -f /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
-    else
-        info "Homebrew $(brew --version | head -1) — already installed."
-    fi
-fi
-
-# ── Helper: install a package if the command is missing ───────
+# ── Helper: install a package if command is missing ───────────
 install_pkg() {
     local cmd="$1" pkg="${2:-$1}"
     if ! command -v "$cmd" &>/dev/null; then
@@ -102,10 +106,22 @@ install_pkg() {
     fi
 }
 
+# ── 1. Homebrew (macOS only) ──────────────────────────────────
+if [[ "$OS" == "Darwin" ]]; then
+    if ! command -v brew &>/dev/null; then
+        info "Installing Homebrew..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        [[ -f /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+    else
+        info "Homebrew $(brew --version | head -1) — already installed."
+    fi
+fi
+
 # ── 2. Core dependencies ──────────────────────────────────────
 install_pkg git  git
 install_pkg curl curl
-install_pkg bc   bc     # used by tmux-zengarden memory.sh
+install_pkg bc   bc      # required by tmux-zengarden memory.sh
+[[ "$OS" == "Linux" ]] && install_pkg unzip unzip   # needed for yazi binary install
 
 # ── 3. tmux ───────────────────────────────────────────────────
 install_pkg tmux tmux
@@ -123,26 +139,30 @@ else
     info "oh-my-posh — already installed."
 fi
 
-# ── 5. zsh + zsh-autosuggestions ─────────────────────────────
-if [[ "$OS" == "Darwin" ]]; then
-    ZSH_AUTOSUGGEST_PATH="$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
-    if [[ ! -f "$ZSH_AUTOSUGGEST_PATH" ]]; then
-        info "Installing zsh-autosuggestions..."
-        brew install zsh-autosuggestions
+# ── 5. zsh-autosuggestions (zsh only, macOS default) ─────────
+ZSH_AUTOSUGGEST_SOURCE=""
+if [[ "$CURRENT_SHELL" == "zsh" ]]; then
+    if [[ "$OS" == "Darwin" ]]; then
+        ZSH_AUTOSUGGEST_PATH="$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        if [[ ! -f "$ZSH_AUTOSUGGEST_PATH" ]]; then
+            info "Installing zsh-autosuggestions..."
+            brew install zsh-autosuggestions
+        else
+            info "zsh-autosuggestions — already installed."
+        fi
+        ZSH_AUTOSUGGEST_SOURCE="source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
     else
-        info "zsh-autosuggestions — already installed."
+        ZSH_AUTOSUGGEST_DIR="$HOME/.zsh/zsh-autosuggestions"
+        if [[ ! -f "$ZSH_AUTOSUGGEST_DIR/zsh-autosuggestions.zsh" ]]; then
+            info "Installing zsh-autosuggestions..."
+            git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_AUTOSUGGEST_DIR"
+        else
+            info "zsh-autosuggestions — already installed."
+        fi
+        ZSH_AUTOSUGGEST_SOURCE="source $ZSH_AUTOSUGGEST_DIR/zsh-autosuggestions.zsh"
     fi
-    ZSH_AUTOSUGGEST_SOURCE="source $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
 else
-    install_pkg zsh zsh
-    ZSH_AUTOSUGGEST_DIR="$HOME/.zsh/zsh-autosuggestions"
-    if [[ ! -f "$ZSH_AUTOSUGGEST_DIR/zsh-autosuggestions.zsh" ]]; then
-        info "Installing zsh-autosuggestions..."
-        git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions "$ZSH_AUTOSUGGEST_DIR"
-    else
-        info "zsh-autosuggestions — already installed."
-    fi
-    ZSH_AUTOSUGGEST_SOURCE="source $ZSH_AUTOSUGGEST_DIR/zsh-autosuggestions.zsh"
+    info "bash detected — skipping zsh-autosuggestions."
 fi
 
 # ── 6. JetBrainsMono Nerd Font ────────────────────────────────
@@ -164,7 +184,7 @@ if [[ "$SKIP_FONTS" == false ]]; then
     fi
 fi
 
-# ── 7. tmux ZenGarden (clone/update + deploy) ────────────────
+# ── 7. tmux ZenGarden (clone/update + deploy) ─────────────────
 ZENGARDEN_DIR="$HOME/Projects/tmux_zengarden"
 ZENGARDEN_REPO="https://github.com/roundzero-ai/tmux-zengarden.git"
 
@@ -184,7 +204,7 @@ if tmux list-sessions &>/dev/null 2>&1; then
     tmux source-file "$HOME/.tmux.conf" && info "Live tmux session reloaded."
 fi
 
-# ── 8. Ghostty config (macOS only) ───────────────────────────
+# ── 8. Ghostty config (macOS only) ────────────────────────────
 if [[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]]; then
     GHOSTTY_CONF_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
     GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
@@ -215,44 +235,83 @@ else
     CLIPBOARD_GET="pbpaste"
 fi
 
-# ── 11. Patch ~/.zshrc (idempotent) ───────────────────────────
-ZSHRC="$HOME/.zshrc"
+# ── 11. Yazi file manager (opt-in via --yazi) ─────────────────
+if [[ "$INSTALL_YAZI" == true ]]; then
+    if command -v yazi &>/dev/null; then
+        info "yazi — already installed."
+    else
+        info "Installing yazi..."
+        if [[ "$OS" == "Darwin" ]]; then
+            brew install yazi
+        else
+            # Use pre-built musl binary from GitHub releases (works on DGX Spark ARM64)
+            case "$ARCH" in
+                aarch64|arm64) YAZI_ARCH="aarch64-unknown-linux-musl" ;;
+                x86_64)        YAZI_ARCH="x86_64-unknown-linux-musl" ;;
+                *) die "Unsupported arch for yazi binary: $ARCH. Build from source: https://github.com/sxyazi/yazi" ;;
+            esac
+            YAZI_TMP="$(mktemp -d)"
+            curl -fL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${YAZI_ARCH}.zip" \
+                -o "$YAZI_TMP/yazi.zip"
+            unzip -q "$YAZI_TMP/yazi.zip" -d "$YAZI_TMP"
+            mkdir -p "$HOME/.local/bin"
+            cp "$YAZI_TMP/yazi-${YAZI_ARCH}/yazi" "$HOME/.local/bin/yazi"
+            chmod +x "$HOME/.local/bin/yazi"
+            rm -rf "$YAZI_TMP"
+            success "yazi installed → ~/.local/bin/yazi"
+        fi
+    fi
+fi
+
+# ── 12. Patch shell RC file (idempotent) ──────────────────────
 OMP_CONFIG="$HOME/.config/oh-my-posh/zengarden.json"
-touch "$ZSHRC"
+touch "$RC_FILE"
 
 # Add a block only if its unique marker is not already present
-patch_zshrc() {
+patch_rc() {
     local marker="$1" block="$2"
-    if grep -qF "$marker" "$ZSHRC"; then
-        info "~/.zshrc: '$marker' — already present."
+    if grep -qF "$marker" "$RC_FILE"; then
+        info "$RC_FILE: '$marker' — already present."
     else
-        info "~/.zshrc: adding '$marker'"
-        printf "\n%s\n" "$block" >> "$ZSHRC"
+        info "$RC_FILE: adding '$marker'"
+        printf "\n%s\n" "$block" >> "$RC_FILE"
     fi
 }
 
-# Disable Ctrl-s flow control (needed for tmux Ctrl-s prefix)
-patch_zshrc "stty -ixon" \
-"# Disable Ctrl-s flow control so tmux Ctrl-s prefix works
-stty -ixon 2>/dev/null || true"
+# TERM — ensures 256-color works when SSH-ing into remote machines
+patch_rc "TERM=xterm-256color" \
+'export TERM=xterm-256color'
 
-# oh-my-posh: migrate old ~/themes.json path → new zengarden path if present
-if grep -qF "themes.json" "$ZSHRC" && ! grep -qF "$OMP_CONFIG" "$ZSHRC"; then
-    info "~/.zshrc: migrating oh-my-posh path from ~/themes.json → $OMP_CONFIG"
-    sed -i.bak "s|themes.json|.config/oh-my-posh/zengarden.json|g" "$ZSHRC"
-    rm -f "${ZSHRC}.bak"
+# Disable Ctrl-s flow control (required for tmux Ctrl-s prefix)
+patch_rc "stty -ixon" \
+'# Disable Ctrl-s flow control so tmux Ctrl-s prefix works
+stty -ixon 2>/dev/null || true'
+
+# ~/.local/bin on PATH (oh-my-posh + yazi install target on Linux)
+if [[ "$OS" == "Linux" ]]; then
+    patch_rc ".local/bin" \
+'export PATH="$HOME/.local/bin:$PATH"'
 fi
-patch_zshrc "oh-my-posh init zsh" \
+
+# oh-my-posh: migrate old ~/themes.json path if present
+if grep -qF "themes.json" "$RC_FILE" && ! grep -qF "$OMP_CONFIG" "$RC_FILE"; then
+    info "$RC_FILE: migrating oh-my-posh path → $OMP_CONFIG"
+    sed -i.bak "s|themes.json|.config/oh-my-posh/zengarden.json|g" "$RC_FILE"
+    rm -f "${RC_FILE}.bak"
+fi
+patch_rc "oh-my-posh init" \
 "# oh-my-posh shell prompt
 if [ \"\$TERM_PROGRAM\" != \"Apple_Terminal\" ]; then
-  eval \"\$(oh-my-posh init zsh --config $OMP_CONFIG)\"
+  eval \"\$(oh-my-posh init ${CURRENT_SHELL} --config ${OMP_CONFIG})\"
 fi"
 
-# zsh-autosuggestions
-patch_zshrc "zsh-autosuggestions.zsh" "$ZSH_AUTOSUGGEST_SOURCE"
+# zsh-autosuggestions (zsh only)
+if [[ -n "$ZSH_AUTOSUGGEST_SOURCE" ]]; then
+    patch_rc "zsh-autosuggestions.zsh" "$ZSH_AUTOSUGGEST_SOURCE"
+fi
 
 # pastefile helper
-patch_zshrc "pastefile()" \
+patch_rc "pastefile()" \
 "# Paste clipboard into a file; validates JSON before saving
 pastefile() {
   local target=\"\$1\"
@@ -268,16 +327,20 @@ pastefile() {
   echo \"Saved to \$target\"
 }"
 
-# ~/.local/bin on PATH (oh-my-posh install target on Linux)
-if [[ "$OS" == "Linux" ]]; then
-    patch_zshrc ".local/bin" 'export PATH="$HOME/.local/bin:$PATH"'
-fi
-
-# Auto-attach tmux when opening Ghostty
-patch_zshrc "tmux attach-session -t main" \
-'# Auto-attach or start a named tmux session (skip if already inside tmux)
+# tmux auto-attach on Ghostty (local macOS only)
+if [[ "$OS" == "Darwin" ]]; then
+    patch_rc "TERM_PROGRAM.*ghostty.*tmux" \
+'# Auto-attach or start tmux when opening a local Ghostty window
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+fi'
+fi
+
+# tmux auto-attach on SSH (remote devices: Mac Studio, DGX Spark)
+patch_rc "new-session -A -s RZ-AI" \
+'# Auto-attach or start tmux on SSH login (Mac Studio, DGX Spark)
+if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
+  exec tmux new-session -A -s RZ-AI
 fi'
 
 # ── Done ──────────────────────────────────────────────────────
@@ -290,12 +353,12 @@ echo "  oh-my-posh theme  $OMP_CONFIG"
 [[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]] && \
 echo "  Ghostty config    ~/Library/Application Support/com.mitchellh.ghostty/config"
 echo "  nanorc            ~/.nanorc"
+[[ "$INSTALL_YAZI" == true ]] && echo "  yazi              $(command -v yazi 2>/dev/null || echo '~/.local/bin/yazi')"
 echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
 [[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]] && echo "  • Restart Ghostty to apply transparency and font settings"
-echo "  • Reload shell:  source ~/.zshrc"
+echo "  • Reload shell:  source $RC_FILE"
 echo "  • Start tmux:    tmux new -s main"
-[[ "$OS" == "Linux" ]] && echo "  • Set zsh default:  chsh -s \$(which zsh)"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
 echo "  Prefix: Ctrl-s  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
