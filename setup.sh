@@ -362,7 +362,7 @@ pastefile() {
 
 # tmux auto-attach on Ghostty (local macOS)
 if [[ "$OS" == "Darwin" ]]; then
-    patch_rc "TERM_PROGRAM.*ghostty.*tmux" \
+    patch_rc "attach-session -t main" \
 '# Auto-attach or start tmux when opening a local Ghostty window
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
   tmux attach-session -t main 2>/dev/null || tmux new-session -s main
