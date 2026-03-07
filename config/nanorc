@@ -1,6 +1,13 @@
-# Disable auto-indent so pasted content is not reformatted
+# ── Paste-safe settings ───────────────────────────────────────
+# Prevent pasted content from being reformatted or mangled
+
+# No auto-indent: pasted indentation is preserved as-is
 set noautoindent
 
+# No line wrapping: long lines are not broken mid-paste
+set nowrap
+
+# ── Display ───────────────────────────────────────────────────
 # Show line numbers
 set linenumbers
 
