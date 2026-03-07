@@ -9,9 +9,11 @@
 #  Usage:  bash setup.sh [options]
 #
 #  Options:
-#    --no-ghostty   skip Ghostty config (auto-skipped on headless Linux)
-#    --no-fonts     skip font installation (auto-skipped on headless Linux)
-#    --yazi         install yazi file manager (opt-in)
+#    --headless     SSH/remote-only mode: skip Ghostty and fonts
+#                   Use this on machines you only access via SSH
+#    --no-ghostty   Skip Ghostty installation and config
+#    --no-fonts     Skip font installation
+#    --yazi         Install yazi file manager (opt-in)
 # ============================================================
 
 set -euo pipefail
@@ -34,8 +36,10 @@ die()     { echo -e "${RED}[tui_zening] ERROR:${RESET} $1"; exit 1; }
 SKIP_GHOSTTY=false
 SKIP_FONTS=false
 INSTALL_YAZI=false
+HEADLESS=false
 for arg in "$@"; do
     case "$arg" in
+        --headless)   HEADLESS=true; SKIP_GHOSTTY=true; SKIP_FONTS=true ;;
         --no-ghostty) SKIP_GHOSTTY=true ;;
         --no-fonts)   SKIP_FONTS=true ;;
         --yazi)       INSTALL_YAZI=true ;;
@@ -51,6 +55,7 @@ echo "     ██║   ╚██████╔╝██║    █████�
 echo "     ╚═╝    ╚═════╝ ╚═╝    ╚══════╝╚══════╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ "
 echo -e "${RESET}"
 echo "  Ghostty · oh-my-posh · tmux ZenGarden — Mac + DGX Spark"
+[[ "$HEADLESS" == true ]] && echo -e "  ${YELLOW}Headless mode — Ghostty and fonts skipped${RESET}"
 echo ""
 
 # ── 0. Detect OS, architecture, and shell ────────────────────
@@ -58,23 +63,15 @@ OS="$(uname)"
 ARCH="$(uname -m)"
 [[ "$OS" == "Darwin" || "$OS" == "Linux" ]] || die "Unsupported OS: $OS"
 
-# Detect the user's default shell (bash on DGX Spark/Ubuntu, zsh on macOS)
 CURRENT_SHELL="$(basename "${SHELL:-bash}")"
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     RC_FILE="$HOME/.zshrc"
 else
     RC_FILE="$HOME/.bashrc"
-    CURRENT_SHELL="bash"   # normalise (handles fish, sh, etc. falling back to bash)
+    CURRENT_SHELL="bash"
 fi
 
 info "Detected: $OS / $ARCH / $CURRENT_SHELL → patching $RC_FILE"
-
-# Headless Linux (DGX Spark, remote servers): auto-skip Ghostty and fonts
-if [[ "$OS" == "Linux" && -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
-    SKIP_GHOSTTY=true
-    SKIP_FONTS=true
-    info "Headless Linux — skipping Ghostty config and fonts."
-fi
 
 # ── Linux: package manager ────────────────────────────────────
 if [[ "$OS" == "Linux" ]]; then
@@ -121,7 +118,7 @@ fi
 install_pkg git  git
 install_pkg curl curl
 install_pkg bc   bc      # required by tmux-zengarden memory.sh
-[[ "$OS" == "Linux" ]] && install_pkg unzip unzip   # needed for yazi binary install
+[[ "$OS" == "Linux" ]] && install_pkg unzip unzip   # needed for yazi binary
 
 # ── 3. tmux ───────────────────────────────────────────────────
 install_pkg tmux tmux
@@ -139,7 +136,7 @@ else
     info "oh-my-posh — already installed."
 fi
 
-# ── 5. zsh-autosuggestions (zsh only, macOS default) ─────────
+# ── 5. zsh-autosuggestions (zsh only) ─────────────────────────
 ZSH_AUTOSUGGEST_SOURCE=""
 if [[ "$CURRENT_SHELL" == "zsh" ]]; then
     if [[ "$OS" == "Darwin" ]]; then
@@ -182,9 +179,104 @@ if [[ "$SKIP_FONTS" == false ]]; then
     else
         info "JetBrainsMono Nerd Font — already installed."
     fi
+else
+    info "Skipping fonts."
 fi
 
-# ── 7. tmux ZenGarden (clone/update + deploy) ─────────────────
+# ── 7. Ghostty ────────────────────────────────────────────────
+if [[ "$SKIP_GHOSTTY" == false ]]; then
+    if [[ "$OS" == "Darwin" ]]; then
+        # macOS: install via Homebrew cask if not present
+        if ! command -v ghostty &>/dev/null && [[ ! -d "/Applications/Ghostty.app" ]]; then
+            info "Installing Ghostty..."
+            brew install --cask ghostty
+        else
+            info "Ghostty — already installed."
+        fi
+        # Deploy config
+        GHOSTTY_CONF_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
+        GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
+        mkdir -p "$GHOSTTY_CONF_DIR"
+    else
+        # Linux: build Ghostty from source (works on ARM64 DGX Spark GB10)
+        if ! command -v ghostty &>/dev/null; then
+            info "Building Ghostty from source (this takes a few minutes)..."
+
+            # System build dependencies
+            $PM_INSTALL libgtk-4-dev libadwaita-1-dev blueprint-compiler \
+                        gettext libxml2-utils xz-utils pkg-config
+
+            # Clone or update Ghostty source
+            GHOSTTY_SRC="$HOME/Projects/ghostty_src"
+            if [[ ! -d "$GHOSTTY_SRC/.git" ]]; then
+                git clone --depth=1 https://github.com/ghostty-org/ghostty.git "$GHOSTTY_SRC"
+            else
+                info "Updating Ghostty source..."
+                git -C "$GHOSTTY_SRC" pull --ff-only
+            fi
+
+            # Read the exact Zig version Ghostty requires
+            ZIG_VERSION=$(cat "$GHOSTTY_SRC/.zig-version" 2>/dev/null | tr -d '[:space:]')
+            [[ -z "$ZIG_VERSION" ]] && ZIG_VERSION="0.15.0"
+            info "Ghostty requires Zig $ZIG_VERSION"
+
+            # Zig arch name (uname -m returns aarch64 on DGX Spark)
+            case "$ARCH" in
+                aarch64|arm64) ZIG_ARCH="aarch64" ;;
+                x86_64)        ZIG_ARCH="x86_64" ;;
+                *) die "Unsupported arch for Zig: $ARCH" ;;
+            esac
+
+            # Install Zig if not present or wrong version
+            ZIG_DIR="$HOME/.local/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}"
+            ZIG_BIN="$ZIG_DIR/zig"
+            if [[ ! -f "$ZIG_BIN" ]]; then
+                info "Installing Zig $ZIG_VERSION ($ZIG_ARCH)..."
+                mkdir -p "$HOME/.local/zig"
+                curl -fL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" \
+                    | tar -xJ -C "$HOME/.local/zig"
+            else
+                info "Zig $ZIG_VERSION — already installed."
+            fi
+
+            # Build Ghostty
+            # -fno-sys=gtk4-layer-shell: compile gtk4-layer-shell from source
+            # (required on Ubuntu 24.04 which doesn't package it)
+            info "Compiling Ghostty..."
+            cd "$GHOSTTY_SRC"
+            "$ZIG_BIN" build -Doptimize=ReleaseFast -fno-sys=gtk4-layer-shell 2>/dev/null \
+                || "$ZIG_BIN" build -Doptimize=ReleaseFast
+            cd - >/dev/null
+
+            # Install binary
+            mkdir -p "$HOME/.local/bin"
+            cp "$GHOSTTY_SRC/zig-out/bin/ghostty" "$HOME/.local/bin/ghostty"
+            chmod +x "$HOME/.local/bin/ghostty"
+            export PATH="$HOME/.local/bin:$PATH"
+            success "Ghostty built → ~/.local/bin/ghostty"
+        else
+            info "Ghostty — already installed."
+        fi
+
+        # Deploy config (Linux path: ~/.config/ghostty/config)
+        GHOSTTY_CONF_DIR="$HOME/.config/ghostty"
+        GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
+        mkdir -p "$GHOSTTY_CONF_DIR"
+    fi
+
+    # Back up and deploy Ghostty config
+    if [[ -f "$GHOSTTY_CONF" ]]; then
+        bak="${GHOSTTY_CONF}.bak.$(date +%Y%m%d_%H%M%S)"
+        cp "$GHOSTTY_CONF" "$bak"
+        info "Ghostty config backed up → $bak"
+    fi
+    cp "$SCRIPT_DIR/config/ghostty" "$GHOSTTY_CONF"
+    success "Ghostty config deployed → $GHOSTTY_CONF"
+else
+    info "Skipping Ghostty."
+fi
+
+# ── 8. tmux ZenGarden (clone/update + deploy) ─────────────────
 ZENGARDEN_DIR="$HOME/Projects/tmux_zengarden"
 ZENGARDEN_REPO="https://github.com/roundzero-ai/tmux-zengarden.git"
 
@@ -202,20 +294,6 @@ bash "$ZENGARDEN_DIR/deploy.sh" --posh
 
 if tmux list-sessions &>/dev/null 2>&1; then
     tmux source-file "$HOME/.tmux.conf" && info "Live tmux session reloaded."
-fi
-
-# ── 8. Ghostty config (macOS only) ────────────────────────────
-if [[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]]; then
-    GHOSTTY_CONF_DIR="$HOME/Library/Application Support/com.mitchellh.ghostty"
-    GHOSTTY_CONF="$GHOSTTY_CONF_DIR/config"
-    mkdir -p "$GHOSTTY_CONF_DIR"
-    if [[ -f "$GHOSTTY_CONF" ]]; then
-        bak="${GHOSTTY_CONF}.bak.$(date +%Y%m%d_%H%M%S)"
-        cp "$GHOSTTY_CONF" "$bak"
-        info "Ghostty config backed up → $bak"
-    fi
-    cp "$SCRIPT_DIR/config/ghostty" "$GHOSTTY_CONF"
-    success "Ghostty config deployed → $GHOSTTY_CONF"
 fi
 
 # ── 9. nanorc ─────────────────────────────────────────────────
@@ -244,11 +322,10 @@ if [[ "$INSTALL_YAZI" == true ]]; then
         if [[ "$OS" == "Darwin" ]]; then
             brew install yazi
         else
-            # Use pre-built musl binary from GitHub releases (works on DGX Spark ARM64)
             case "$ARCH" in
                 aarch64|arm64) YAZI_ARCH="aarch64-unknown-linux-musl" ;;
                 x86_64)        YAZI_ARCH="x86_64-unknown-linux-musl" ;;
-                *) die "Unsupported arch for yazi binary: $ARCH. Build from source: https://github.com/sxyazi/yazi" ;;
+                *) die "Unsupported arch for yazi binary: $ARCH. See https://github.com/sxyazi/yazi" ;;
             esac
             YAZI_TMP="$(mktemp -d)"
             curl -fL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${YAZI_ARCH}.zip" \
@@ -267,7 +344,6 @@ fi
 OMP_CONFIG="$HOME/.config/oh-my-posh/zengarden.json"
 touch "$RC_FILE"
 
-# Add a block only if its unique marker is not already present
 patch_rc() {
     local marker="$1" block="$2"
     if grep -qF "$marker" "$RC_FILE"; then
@@ -278,7 +354,7 @@ patch_rc() {
     fi
 }
 
-# TERM — ensures 256-color works when SSH-ing into remote machines
+# TERM — 256-color over SSH
 patch_rc "TERM=xterm-256color" \
 'export TERM=xterm-256color'
 
@@ -287,15 +363,15 @@ patch_rc "stty -ixon" \
 '# Disable Ctrl-s flow control so tmux Ctrl-s prefix works
 stty -ixon 2>/dev/null || true'
 
-# ~/.local/bin on PATH (oh-my-posh + yazi install target on Linux)
+# PATH — ~/.local/bin for oh-my-posh + yazi on Linux
 if [[ "$OS" == "Linux" ]]; then
     patch_rc ".local/bin" \
 'export PATH="$HOME/.local/bin:$PATH"'
 fi
 
-# oh-my-posh: migrate old ~/themes.json path if present
+# oh-my-posh — migrate old ~/themes.json path if present
 if grep -qF "themes.json" "$RC_FILE" && ! grep -qF "$OMP_CONFIG" "$RC_FILE"; then
-    info "$RC_FILE: migrating oh-my-posh path → $OMP_CONFIG"
+    info "$RC_FILE: migrating oh-my-posh config path → $OMP_CONFIG"
     sed -i.bak "s|themes.json|.config/oh-my-posh/zengarden.json|g" "$RC_FILE"
     rm -f "${RC_FILE}.bak"
 fi
@@ -327,7 +403,7 @@ pastefile() {
   echo \"Saved to \$target\"
 }"
 
-# tmux auto-attach on Ghostty (local macOS only)
+# tmux auto-attach on Ghostty (local macOS)
 if [[ "$OS" == "Darwin" ]]; then
     patch_rc "TERM_PROGRAM.*ghostty.*tmux" \
 '# Auto-attach or start tmux when opening a local Ghostty window
@@ -336,9 +412,9 @@ if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
 fi'
 fi
 
-# tmux auto-attach on SSH (remote devices: Mac Studio, DGX Spark)
+# tmux auto-attach on SSH login (Mac Studio, DGX Spark)
 patch_rc "new-session -A -s RZ-AI" \
-'# Auto-attach or start tmux on SSH login (Mac Studio, DGX Spark)
+'# Auto-attach or start tmux on SSH login
 if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
   exec tmux new-session -A -s RZ-AI
 fi'
@@ -350,13 +426,13 @@ echo ""
 echo -e "  ${BOLD}Deployed:${RESET}"
 echo "  tmux ZenGarden    ~/.tmux.conf  (github.com/roundzero-ai/tmux-zengarden)"
 echo "  oh-my-posh theme  $OMP_CONFIG"
-[[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]] && \
-echo "  Ghostty config    ~/Library/Application Support/com.mitchellh.ghostty/config"
+[[ "$SKIP_GHOSTTY" == false ]] && echo "  Ghostty config    $GHOSTTY_CONF"
 echo "  nanorc            ~/.nanorc"
 [[ "$INSTALL_YAZI" == true ]] && echo "  yazi              $(command -v yazi 2>/dev/null || echo '~/.local/bin/yazi')"
 echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
-[[ "$OS" == "Darwin" && "$SKIP_GHOSTTY" == false ]] && echo "  • Restart Ghostty to apply transparency and font settings"
+[[ "$SKIP_GHOSTTY" == false && "$OS" == "Darwin" ]] && echo "  • Restart Ghostty to apply transparency and font settings"
+[[ "$SKIP_GHOSTTY" == false && "$OS" == "Linux" ]]  && echo "  • Launch Ghostty from your desktop environment"
 echo "  • Reload shell:  source $RC_FILE"
 echo "  • Start tmux:    tmux new -s main"
 echo ""
