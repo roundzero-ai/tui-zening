@@ -1,0 +1,26 @@
+# Ghostty config — tui_zening
+# Deploy: setup.sh copies this to ~/Library/Application Support/com.mitchellh.ghostty/config
+# Reference: https://ghostty.org/docs/config
+
+#theme             = "light:Alabaster,dark:Bright Lights"
+theme             = "Bright Lights"
+font-family       = "JetBrainsMono NFM Regular"
+font-size         = 13
+adjust-cell-height = 1%
+
+mouse-scroll-multiplier = 2
+mouse-hide-while-typing = true
+focus-follows-mouse     = true
+cursor-style            = block
+copy-on-select          = clipboard
+
+window-padding-x       = 5
+window-padding-y       = 5
+window-colorspace      = "display-p3"
+window-decoration      = true
+window-padding-balance = true
+window-save-state      = always
+
+macos-titlebar-style = transparent
+background-opacity   = 0.8
+background-blur      = 90
