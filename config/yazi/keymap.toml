@@ -1,0 +1,40 @@
+# keymap.toml — tui_zening
+# Reference: https://yazi-rs.github.io/docs/configuration/keymap
+#
+# Uses prepend_keymap to add bindings BEFORE defaults (higher priority).
+# Uses append_keymap to add bindings AFTER defaults (fallback).
+# All default yazi bindings remain intact unless explicitly shadowed.
+
+[mgr]
+prepend_keymap = [
+  # ── Show/hide hidden files (. is default but make it explicit) ──
+  { on = ".",  run = "hidden toggle", desc = "Toggle hidden files" },
+
+  # ── Quick copy paths (c-prefix chords) ──
+  { on = ["c", "c"], run = "copy path",          desc = "Copy full path" },
+  { on = ["c", "d"], run = "copy dirname",        desc = "Copy directory" },
+  { on = ["c", "f"], run = "copy filename",       desc = "Copy filename" },
+  { on = ["c", "n"], run = "copy name_without_ext", desc = "Copy name (no ext)" },
+
+  # ── Sorting shortcuts (, prefix) ──
+  { on = [",", "m"], run = "sort modified  --reverse", desc = "Sort by modified (newest first)" },
+  { on = [",", "M"], run = "sort modified",             desc = "Sort by modified (oldest first)" },
+  { on = [",", "s"], run = "sort size --reverse",       desc = "Sort by size (largest first)" },
+  { on = [",", "S"], run = "sort size",                 desc = "Sort by size (smallest first)" },
+  { on = [",", "n"], run = "sort natural",              desc = "Sort naturally" },
+  { on = [",", "e"], run = "sort extension",            desc = "Sort by extension" },
+
+  # ── Directory bookmarks (g-prefix chords) ──
+  { on = ["g", "h"], run = "cd ~",               desc = "Go to home" },
+  { on = ["g", "d"], run = "cd ~/Downloads",     desc = "Go to Downloads" },
+  { on = ["g", "p"], run = "cd ~/Projects",      desc = "Go to Projects" },
+  { on = ["g", "c"], run = "cd ~/.config",       desc = "Go to ~/.config" },
+  { on = ["g", "t"], run = "cd /tmp",            desc = "Go to /tmp" },
+
+  # ── Tab management ──
+  { on = "<C-t>", run = "tab_create --current", desc = "New tab (current dir)" },
+
+  # ── Arrow-key navigation (fallback for non-vim users) ──
+  { on = "<Left>",  run = "leave",               desc = "Go to parent dir" },
+  { on = "<Right>", run = "enter",               desc = "Enter directory" },
+]

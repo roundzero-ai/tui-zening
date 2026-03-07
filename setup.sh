@@ -287,6 +287,19 @@ if [[ "$INSTALL_YAZI" == true ]]; then
             success "yazi installed → ~/.local/bin/yazi"
         fi
     fi
+
+    # Deploy yazi config files
+    YAZI_CONF_DIR="$HOME/.config/yazi"
+    mkdir -p "$YAZI_CONF_DIR"
+    for f in yazi.toml keymap.toml theme.toml; do
+        if [[ -f "$YAZI_CONF_DIR/$f" ]]; then
+            bak="${YAZI_CONF_DIR}/${f}.bak.$(date +%Y%m%d_%H%M%S)"
+            cp "$YAZI_CONF_DIR/$f" "$bak"
+            info "yazi $f backed up → $bak"
+        fi
+        cp "$SCRIPT_DIR/config/yazi/$f" "$YAZI_CONF_DIR/$f"
+    done
+    success "yazi config deployed → $YAZI_CONF_DIR"
 fi
 
 # ── 11. Patch shell RC file (idempotent) ──────────────────────
@@ -352,6 +365,21 @@ if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
   exec tmux new-session -A -s RZ-AI
 fi'
 
+# yazi `y` wrapper — changes shell CWD to directory yazi exits in
+if [[ "$INSTALL_YAZI" == true ]]; then
+    patch_rc "yazi --cwd-file" \
+'# yazi shell wrapper: `y` to launch yazi and cd into the last directory on exit
+function y() {
+    local tmp cwd
+    tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+    yazi "$@" --cwd-file="$tmp"
+    if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        builtin cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}'
+fi
+
 # SSH mouse-reset wrapper — clears tmux mouse tracking on unexpected disconnect
 patch_rc "ssh_mouse_reset" \
 '# Reset mouse tracking after SSH disconnect (prevents tmux mouse mode gibberish)
@@ -370,12 +398,14 @@ echo "  oh-my-posh theme  $OMP_CONFIG"
 [[ "$SKIP_GHOSTTY" == false ]] && echo "  Ghostty config    $GHOSTTY_CONF"
 echo "  nanorc            ~/.nanorc"
 [[ "$INSTALL_YAZI" == true ]] && echo "  yazi              $(command -v yazi 2>/dev/null || echo '~/.local/bin/yazi')"
+[[ "$INSTALL_YAZI" == true ]] && echo "  yazi config       ~/.config/yazi/"
 echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Darwin" ]] && echo "  • Restart Ghostty to apply transparency and font settings"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Linux" ]]  && echo "  • Launch Ghostty from your desktop environment"
 echo "  • Reload shell:  source $RC_FILE"
 echo "  • Start tmux:    tmux new -s main"
+[[ "$INSTALL_YAZI" == true ]] && echo "  • Launch yazi:   y   (or 'yazi' to skip CWD change on exit)"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
 echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"

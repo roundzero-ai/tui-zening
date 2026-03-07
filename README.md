@@ -36,7 +36,7 @@ bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi]
 | `--headless` | SSH-only mode: skip Ghostty install and fonts. Use on machines accessed only via SSH. |
 | `--no-ghostty` | Skip Ghostty installation and config deployment |
 | `--no-fonts` | Skip JetBrainsMono Nerd Font installation |
-| `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) terminal file manager (opt-in) |
+| `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) file manager, deploy config to `~/.config/yazi/`, and add `y` shell wrapper (opt-in) |
 
 > **Note:** Unlike previous versions, Ghostty and fonts are no longer auto-skipped on headless Linux. Pass `--headless` explicitly when you want SSH-only setup.
 
@@ -257,6 +257,33 @@ This will pull the latest `tmux-zengarden`, re-deploy configs, and skip already-
 
 ---
 
+## Yazi File Manager
+
+Installed opt-in via `--yazi`. Configures:
+
+| File | Purpose |
+|---|---|
+| `~/.config/yazi/yazi.toml` | Manager layout, sorting, preview settings |
+| `~/.config/yazi/keymap.toml` | Custom keybindings (adds to defaults, never replaces) |
+| `~/.config/yazi/theme.toml` | Color theme stub (points to flavor docs) |
+
+The `y` shell function is added to your RC file — use it instead of `yazi` to automatically `cd` into the directory you were browsing when you quit.
+
+### Key Bindings Added
+
+| Key | Action |
+|---|---|
+| `.` | Toggle hidden files |
+| `c c` / `c d` / `c f` / `c n` | Copy full path / dir / filename / name-no-ext |
+| `, m` / `, s` / `, n` / `, e` | Sort by modified / size / natural / extension |
+| `g h` / `g d` / `g p` / `g c` / `g t` | Jump to home / Downloads / Projects / .config / /tmp |
+| `Ctrl+t` | New tab (current directory) |
+| `←` / `→` | Parent dir / enter directory (arrow-key fallback) |
+
+All default yazi bindings (`hjkl`, `q`, `y`/`x`/`p`, `d`, etc.) remain unchanged.
+
+---
+
 ## Project Structure
 
 ```
@@ -264,7 +291,11 @@ tui-zening/
 ├── setup.sh          # main setup script
 ├── config/
 │   ├── ghostty       # Ghostty terminal config
-│   └── nanorc        # nano editor config
+│   ├── nanorc        # nano editor config
+│   └── yazi/
+│       ├── yazi.toml    # manager, preview, tasks settings
+│       ├── keymap.toml  # custom keybindings (prepend_keymap)
+│       └── theme.toml   # theme/flavor stub
 └── README.md
 ```
 

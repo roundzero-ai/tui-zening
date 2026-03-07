@@ -1,0 +1,14 @@
+# theme.toml — tui_zening
+# Reference: https://yazi-rs.github.io/docs/configuration/theme
+#
+# Kept minimal — yazi's built-in defaults look great.
+# Uncomment and adjust to taste. Full options at the reference above.
+#
+# To use a community flavor instead, install with:
+#   ya pack -a yazi-rs/flavors#catppuccin-mocha
+# and set in yazi.toml:
+#   [flavor]
+#   use = "catppuccin-mocha"
+
+[flavor]
+# use = ""   # leave empty to use built-in theme
