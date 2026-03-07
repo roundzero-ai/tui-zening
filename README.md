@@ -129,6 +129,7 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 | `pastefile` helper function | `pastefile()` |
 | Ghostty tmux auto-attach | `TERM_PROGRAM.*ghostty.*tmux` (macOS only) |
 | SSH tmux auto-attach | `new-session -A -s RZ-AI` |
+| SSH mouse-tracking reset | `ssh_mouse_reset` |
 
 ### tmux Auto-Attach Behaviour
 
@@ -147,6 +148,16 @@ if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
   exec tmux new-session -A -s RZ-AI
 fi
 ```
+
+**SSH mouse-tracking reset** (added to `~/.zshrc` or `~/.bashrc`):
+```bash
+ssh() {
+    command ssh "$@"
+    printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'
+}
+```
+
+When a remote tmux session has `set -g mouse on`, the terminal is put into mouse-reporting mode. If the SSH connection drops unexpectedly, the terminal is left in that state — causing trackpad scroll gestures to print raw SGR escape sequences (e.g. `65;146;38M`) instead of scrolling. This wrapper resets all mouse tracking modes after every SSH exit, clean or otherwise.
 
 ---
 

@@ -352,6 +352,14 @@ if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
   exec tmux new-session -A -s RZ-AI
 fi'
 
+# SSH mouse-reset wrapper — clears tmux mouse tracking on unexpected disconnect
+patch_rc "ssh_mouse_reset" \
+'# Reset mouse tracking after SSH disconnect (prevents tmux mouse mode gibberish)
+ssh() {
+    command ssh "$@"
+    printf '"'"'\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'"'"'
+}'
+
 # ── Done ──────────────────────────────────────────────────────
 echo ""
 success "All done!"
