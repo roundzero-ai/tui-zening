@@ -129,6 +129,7 @@ if ! command -v oh-my-posh &>/dev/null; then
     if [[ "$OS" == "Darwin" ]]; then
         brew install jandedobbeleer/oh-my-posh/oh-my-posh
     else
+        mkdir -p "$HOME/.local/bin"
         curl -fsSL https://ohmyposh.dev/install.sh | bash -s -- -d ~/.local/bin
         export PATH="$HOME/.local/bin:$PATH"
     fi
