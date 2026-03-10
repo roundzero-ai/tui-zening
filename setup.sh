@@ -130,8 +130,8 @@ if ! command -v oh-my-posh &>/dev/null; then
         brew install jandedobbeleer/oh-my-posh/oh-my-posh
     else
         mkdir -p "$HOME/.local/bin"
-        curl -fsSL https://ohmyposh.dev/install.sh | bash -s -- -d ~/.local/bin
         export PATH="$HOME/.local/bin:$PATH"
+        curl -fsSL https://ohmyposh.dev/install.sh | bash -s -- -d ~/.local/bin
     fi
 else
     info "oh-my-posh — already installed."
