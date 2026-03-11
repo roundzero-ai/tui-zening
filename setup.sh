@@ -356,7 +356,7 @@ if [[ "$OS" == "Darwin" ]]; then
     if grep -qF 'attach-session -t main' "$RC_FILE" && ! grep -qF 'Main |' "$RC_FILE"; then
         info "$RC_FILE: migrating local tmux session name → 'Main | \$(hostname -s)'"
         sed -i.bak \
-            's|tmux attach-session -t main 2>/dev/null || tmux new-session -s main|_s="Main | $(hostname -s)"; tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"; unset _s|' \
+            's#tmux attach-session -t main 2>/dev/null || tmux new-session -s main#_s="Main | $(hostname -s)"; tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"; unset _s#' \
             "$RC_FILE"
         rm -f "${RC_FILE}.bak"
     fi
@@ -374,7 +374,7 @@ fi
 if grep -qF 'new-session -A -s RZ-AI' "$RC_FILE" && ! grep -qF 'RZ-AI |' "$RC_FILE"; then
     info "$RC_FILE: migrating remote tmux session name → 'RZ-AI | \$(hostname -s)'"
     sed -i.bak \
-        's|exec tmux new-session -A -s RZ-AI$|exec tmux new-session -A -s "RZ-AI | $(hostname -s)"|' \
+        's#exec tmux new-session -A -s RZ-AI$#exec tmux new-session -A -s "RZ-AI | $(hostname -s)"#' \
         "$RC_FILE"
     rm -f "${RC_FILE}.bak"
 fi
