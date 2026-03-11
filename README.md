@@ -126,28 +126,35 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 | `export PATH="$HOME/.local/bin:$PATH"` | `.local/bin` (Linux only) |
 | oh-my-posh prompt init | `oh-my-posh init` |
 | zsh-autosuggestions source | `zsh-autosuggestions.zsh` (zsh only) |
-| `pastefile` helper function | `pastefile()` |
-| Ghostty tmux auto-attach | `TERM_PROGRAM.*ghostty.*tmux` (macOS only) |
-| SSH tmux auto-attach | `new-session -A -s RZ-AI` |
+| Ghostty tmux auto-attach (`Main \| hostname`) | `Main | $(hostname -s)` (macOS only) |
+| SSH tmux auto-attach (`RZ-AI \| hostname`) | `new-session -A -s "RZ-AI \|` |
 | SSH mouse-tracking reset | `ssh_mouse_reset` |
 
 ### tmux Auto-Attach Behaviour
 
 The two snippets are independent and do not conflict.
 
+Session names include the machine's hostname so you can identify which machine a session belongs to when tunnelling or using tmux nesting.
+
 **Local — MacBook + Ghostty** (added to `~/.zshrc` on macOS):
 ```zsh
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
-  tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+  _s="Main | $(hostname -s)"
+  tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"
+  unset _s
 fi
 ```
+Session name: `Main | macbook-pro` (or whatever `hostname -s` returns)
 
 **Remote — Mac Studio / DGX Spark via SSH** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
 if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
-  exec tmux new-session -A -s RZ-AI
+  exec tmux new-session -A -s "RZ-AI | $(hostname -s)"
 fi
 ```
+Session name: `RZ-AI | mac-studio` or `RZ-AI | dgx-spark`
+
+Re-running `setup.sh` on an existing machine automatically migrates the old fixed session names (`main` / `RZ-AI`) to the new hostname-suffixed format.
 
 **SSH mouse-tracking reset** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
@@ -179,6 +186,8 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 
 ### Key Bindings
 
+#### Outer tmux
+
 | Action | Key |
 |---|---|
 | Prefix | `Ctrl-Space` |
@@ -192,10 +201,30 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 | Zoom pane | `prefix + z` |
 | Switch window | `Alt+1` – `Alt+9` |
 | Prev / next window | `Alt+[` / `Alt+]` |
+| Cycle window | `Alt+Tab` / `Alt+Shift+Tab` |
 | Last window | `prefix + Tab` |
 | Reload config | `prefix + r` |
 | Copy mode | `prefix + [` → `v` select → `y` yank |
-| Nested tmux toggle | `F12` — suspend/resume local key interception |
+| Nested tmux toggle (REMOTE mode) | `F12` — suspend/resume local key interception |
+
+#### Inner tmux — Ctrl-key layer (Ghostty + MacBook, no REMOTE mode needed)
+
+| Action | Key |
+|---|---|
+| Inner select window 1..9 | `Ctrl+Alt+1..9` (prefix-free) |
+| Inner next window | `Ctrl+Alt+Tab` (prefix-free) |
+| Inner prev window | `Ctrl+Alt+Shift+Tab` (prefix-free) |
+| Inner new window | `prefix + Ctrl+c` |
+| Inner close pane | `prefix + Ctrl+x` |
+| Inner split horizontal | `prefix + Ctrl+\|` |
+| Inner split vertical | `prefix + Ctrl+-` |
+| Inner bottom pane 25% | `prefix + Ctrl+_` |
+| Inner right pane 33% | `prefix + Ctrl+\` |
+| Inner swap window left/right | `prefix + Ctrl+Shift+←` / `prefix + Ctrl+Shift+→` |
+| Inner resize pane (coarse) | `prefix + Ctrl+H/J/K/L` (repeatable) |
+| Inner resize pane (fine) | `prefix + Ctrl+Alt+H/J/K/L` (repeatable) |
+
+> Ghostty keybindings can optionally map single keystrokes (e.g. `Ctrl+Alt+n`) to trigger inner tmux commands without manually pressing the outer prefix — see [tmux-zengarden README](https://github.com/roundzero-ai/tmux-zengarden) for details.
 
 ---
 

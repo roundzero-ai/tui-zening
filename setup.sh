@@ -352,18 +352,36 @@ fi
 
 # tmux auto-attach on Ghostty (local macOS)
 if [[ "$OS" == "Darwin" ]]; then
-    patch_rc "attach-session -t main" \
+    # Migrate old fixed session name → dynamic "Main | hostname"
+    if grep -qF 'attach-session -t main' "$RC_FILE" && ! grep -qF 'Main |' "$RC_FILE"; then
+        info "$RC_FILE: migrating local tmux session name → 'Main | \$(hostname -s)'"
+        sed -i.bak \
+            's|tmux attach-session -t main 2>/dev/null || tmux new-session -s main|_s="Main | $(hostname -s)"; tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"; unset _s|' \
+            "$RC_FILE"
+        rm -f "${RC_FILE}.bak"
+    fi
+    patch_rc 'Main | $(hostname -s)' \
 '# Auto-attach or start tmux when opening a local Ghostty window
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
-  tmux attach-session -t main 2>/dev/null || tmux new-session -s main
+  _s="Main | $(hostname -s)"
+  tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"
+  unset _s
 fi'
 fi
 
 # tmux auto-attach on SSH login (Mac Studio, DGX Spark)
-patch_rc "new-session -A -s RZ-AI" \
+# Migrate old fixed session name → dynamic "RZ-AI | hostname"
+if grep -qF 'new-session -A -s RZ-AI' "$RC_FILE" && ! grep -qF 'RZ-AI |' "$RC_FILE"; then
+    info "$RC_FILE: migrating remote tmux session name → 'RZ-AI | \$(hostname -s)'"
+    sed -i.bak \
+        's|exec tmux new-session -A -s RZ-AI$|exec tmux new-session -A -s "RZ-AI | $(hostname -s)"|' \
+        "$RC_FILE"
+    rm -f "${RC_FILE}.bak"
+fi
+patch_rc 'new-session -A -s "RZ-AI |' \
 '# Auto-attach or start tmux on SSH login
 if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
-  exec tmux new-session -A -s RZ-AI
+  exec tmux new-session -A -s "RZ-AI | $(hostname -s)"
 fi'
 
 # yazi `y` wrapper — changes shell CWD to directory yazi exits in
@@ -405,12 +423,15 @@ echo -e "  ${BOLD}Next steps:${RESET}"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Darwin" ]] && echo "  • Restart Ghostty to apply transparency and font settings"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Linux" ]]  && echo "  • Launch Ghostty from your desktop environment"
 echo "  • Reload shell:  source $RC_FILE"
-echo "  • Start tmux:    tmux new -s main"
+echo "  • Start tmux:    tmux new -s \"Main | \$(hostname -s)\""
 [[ "$INSTALL_YAZI" == true ]] && echo "  • Launch yazi:   y   (or 'yazi' to skip CWD change on exit)"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
 echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
 echo "  Bottom pane 25%: prefix+_  |  Right pane 33%: prefix+\\"
 echo "  Resize: prefix+H/J/K/L  |  Windows: Alt+1-9  |  Zoom: prefix+z"
-echo "  Nested tmux: F12 toggles key passthrough to inner session"
+echo "  Window cycle: Alt+Tab / Alt+Shift+Tab"
+echo "  Nested tmux: F12 (REMOTE mode) or Ctrl+Alt combos (inner without REMOTE)"
+echo "  Inner window select: Ctrl+Alt+1-9  |  Inner cycle: Ctrl+Alt+Tab / Ctrl+Alt+Shift+Tab"
+echo "  Inner new window: prefix+Ctrl+c  |  Inner close pane: prefix+Ctrl+x"
 echo ""
