@@ -1,6 +1,6 @@
 # tui_zening
 
-One-command terminal environment setup for consistent coding experience across **MacBook Pro**, **Mac Studio**, and **NVIDIA DGX Spark GB10**.
+One-command terminal environment setup for consistent coding experience across **MacBook Pro**, **Mac Studio Ultra**, **NVIDIA DGX Spark GB10**, and **Ubuntu** machines (amd64/arm64).
 
 Installs and configures:
 - **Ghostty** — terminal (transparency, blur, font)
@@ -20,7 +20,7 @@ bash setup.sh
 Reload your shell after:
 ```bash
 source ~/.zshrc    # macOS (zsh)
-source ~/.bashrc   # DGX Spark / Linux (bash)
+source ~/.bashrc   # Linux (bash)
 ```
 
 ---
@@ -38,8 +38,6 @@ bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi]
 | `--no-fonts` | Skip JetBrainsMono Nerd Font installation |
 | `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) file manager, deploy config to `~/.config/yazi/`, and add `y` shell wrapper (opt-in) |
 
-> **Note:** Unlike previous versions, Ghostty and fonts are no longer auto-skipped on headless Linux. Pass `--headless` explicitly when you want SSH-only setup.
-
 ---
 
 ## Per-machine Usage
@@ -51,14 +49,14 @@ bash setup.sh
 ```
 
 - Installs Ghostty via Homebrew cask
-- Deploys Ghostty config (transparency, blur, JetBrainsMono)
+- Deploys Ghostty config with inner-tmux keybindings (transparency, blur, JetBrainsMono)
 - Installs zsh-autosuggestions
 - Patches `~/.zshrc`
-- Sets up tmux auto-attach when opening a Ghostty window
+- Sets up tmux auto-attach: opens Ghostty → outer tmux session `Main | hostname`
 
-### Mac Studio (remote via SSH, zsh)
+### Mac Studio Ultra (local or remote via SSH, zsh)
 
-Full setup (run when connected to display):
+Full setup (when connected to display):
 ```bash
 bash setup.sh
 ```
@@ -86,14 +84,13 @@ bash setup.sh --headless
 bash setup.sh
 ```
 
-On Linux, the script first tries to install Ghostty via the system package manager (`apt install ghostty`). If that fails (package not available), it falls back to **building from source** using Zig. The source build:
-1. Installs build dependencies (`libgtk-4-dev`, `libadwaita-1-dev`, etc.)
-2. Clones `github.com/ghostty-org/ghostty`
-3. Downloads the exact Zig version required (read from `.zig-version` in source)
-4. Compiles with `zig build -Doptimize=ReleaseFast`
-5. Installs binary to `~/.local/bin/ghostty`
+On Linux, the script first tries to install Ghostty via the system package manager (`apt install ghostty`). If that fails (package not available), it falls back to **snap** (`snap install ghostty --classic`). If neither works, the script warns you and skips Ghostty — install it manually from [ghostty.org](https://ghostty.org/docs/install/binary).
 
-On subsequent runs, the source is updated with `git pull` and only rebuilt if needed.
+### amd64 / arm64 Ubuntu (remote via SSH, bash)
+
+```bash
+bash setup.sh --headless
+```
 
 With yazi:
 ```bash
@@ -104,15 +101,32 @@ bash setup.sh --yazi
 
 ## What Gets Installed
 
-| Component | macOS (zsh) | DGX Spark / Linux (bash) | Headless (`--headless`) |
+| Component | macOS (zsh) | Linux (bash) | Headless (`--headless`) |
 |---|---|---|---|
 | tmux | ✓ | ✓ | ✓ |
 | oh-my-posh | ✓ | ✓ | ✓ |
 | tmux ZenGarden config | ✓ | ✓ | ✓ |
 | zsh-autosuggestions | ✓ | — (bash) | — |
 | JetBrainsMono Nerd Font | ✓ | ✓ | — |
-| Ghostty | ✓ brew cask | ✓ built from source | — |
+| Ghostty | ✓ brew cask | ✓ pkg manager / snap | — |
 | yazi | opt-in `--yazi` | opt-in `--yazi` | opt-in `--yazi` |
+
+---
+
+## Workflow: Nested tmux via SSH
+
+The intended workflow:
+
+1. **Local device** (MacBook Pro / Mac Studio): Ghostty opens → outer tmux session `Main | hostname`
+2. **Each tmux window** SSHs to a remote device
+3. **Remote device** runs inner tmux session `RZ-AI | hostname`
+
+Two ways to control the inner tmux:
+
+- **F12 REMOTE mode**: toggle on to pass ALL keys to inner tmux, toggle off to resume local control
+- **Ctrl-key layer**: add Ctrl to any outer binding to operate the inner tmux (REMOTE mode stays off)
+
+Ghostty keybindings further reduce prefix-based inner operations to single keystrokes.
 
 ---
 
@@ -132,10 +146,6 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 
 ### tmux Auto-Attach Behaviour
 
-The two snippets are independent and do not conflict.
-
-Session names include the machine's hostname so you can identify which machine a session belongs to when tunnelling or using tmux nesting.
-
 **Local — MacBook + Ghostty** (added to `~/.zshrc` on macOS):
 ```zsh
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -144,17 +154,15 @@ if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
   unset _s
 fi
 ```
-Session name: `Main | macbook-pro` (or whatever `hostname -s` returns)
+Session name: `Main | macbook-pro`
 
-**Remote — Mac Studio / DGX Spark via SSH** (added to `~/.zshrc` or `~/.bashrc`):
+**Remote — via SSH** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
 if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
   exec tmux new-session -A -s "RZ-AI | $(hostname -s)"
 fi
 ```
 Session name: `RZ-AI | mac-studio` or `RZ-AI | dgx-spark`
-
-Re-running `setup.sh` on an existing machine automatically migrates the old fixed session names (`main` / `RZ-AI`) to the new hostname-suffixed format.
 
 **SSH mouse-tracking reset** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
@@ -164,7 +172,7 @@ ssh() {
 }
 ```
 
-When a remote tmux session has `set -g mouse on`, the terminal is put into mouse-reporting mode. If the SSH connection drops unexpectedly, the terminal is left in that state — causing trackpad scroll gestures to print raw SGR escape sequences (e.g. `65;146;38M`) instead of scrolling. This wrapper resets all mouse tracking modes after every SSH exit, clean or otherwise.
+Resets mouse tracking modes after every SSH exit to prevent raw escape sequences appearing when a remote tmux session drops unexpectedly.
 
 ---
 
@@ -176,11 +184,11 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 
 ```
  ≋ ZenGarden  user@host     1:project  2:folder>nvim  3:user@remote
-  session     git ⎇ branch  CPU 18%  MEM 8.2G 51%  GPU 20%  14:35 Fri
+  session                   CPU 18%  MEM 8.2G 51%  GPU 20%  14:35 Fri
 ```
 
 - **Line 0** — Brand pill + identity (left) · Colored window tabs (right)
-- **Line 1** — Session pill (left) · git · CPU · RAM % · GPU · time (right)
+- **Line 1** — Session pill (left) · CPU · RAM · GPU · time (right)
 - **Window tab labels**: idle shell → `folder` · program running → `folder>program` · SSH → `user@host`
 - GPU stats: `ioreg` on Apple Silicon (no sudo) · `nvidia-smi` on DGX Spark (UMA-aware for GB10)
 
@@ -192,59 +200,79 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 |---|---|
 | Prefix | `Ctrl-Space` |
 | Navigate panes | `Alt+h/j/k/l` (no prefix) or `prefix + h/j/k/l` |
-| Resize pane (coarse) | `prefix + H/J/K/L` |
-| Resize pane (fine) | `prefix + Alt+H/J/K/L` |
+| Resize pane (coarse) | `prefix + H/J/K/L` (repeatable) |
+| Resize pane (fine) | `prefix + Alt+H/J/K/L` (repeatable) |
 | Split horizontal | `prefix + \|` |
 | Split vertical | `prefix + -` |
 | Bottom pane 25% | `prefix + _` — creates if none, focuses if exists |
 | Right pane 33% | `prefix + \` — creates if none, focuses if exists |
 | Zoom pane | `prefix + z` |
-| Switch window | `Alt+1` – `Alt+9` |
-| Prev / next window | `Alt+[` / `Alt+]` |
+| New window | `prefix + c` |
+| Close pane (confirm) | `prefix + x` |
+| Switch window | `Alt+1..9` |
 | Cycle window | `Alt+Tab` / `Alt+Shift+Tab` |
-| Last window | `prefix + Tab` |
+| Swap pane down / up | `prefix + >` / `prefix + <` |
+| Swap window left / right | `prefix + Shift+←` / `prefix + Shift+→` |
 | Reload config | `prefix + r` |
 | Copy mode | `prefix + [` → `v` select → `y` yank |
 | Nested tmux toggle (REMOTE mode) | `F12` — suspend/resume local key interception |
 
-#### Inner tmux — Ctrl-key layer (Ghostty + MacBook, no REMOTE mode needed)
+#### Inner tmux — Ctrl-key layer (no REMOTE mode needed)
+
+Pattern: add **Ctrl** to the outer binding. All outer bindings stay active.
+
+**Prefix-free** — tmux root-table bindings:
 
 | Action | Key |
 |---|---|
-| Inner pane navigation | `Ctrl+Alt+h/j/k/l` (prefix-free) |
-| Inner select window 1..9 | `Ctrl+Alt+1..9` (prefix-free) |
-| Inner next window | `Ctrl+Alt+Tab` (prefix-free) |
-| Inner prev window | `Ctrl+Alt+Shift+Tab` (prefix-free) |
-| Inner new window | `prefix + Ctrl+c` |
-| Inner close pane | `prefix + Ctrl+x` |
-| Inner zoom toggle | `prefix + Ctrl+z` |
-| Inner split horizontal | `prefix + Ctrl+\|` |
-| Inner split vertical | `prefix + Ctrl+-` |
-| Inner bottom pane 25% | `prefix + Ctrl+_` |
-| Inner right pane 33% | `prefix + Ctrl+\` |
-| Inner swap window left/right | `prefix + Ctrl+Shift+←` / `prefix + Ctrl+Shift+→` |
-| Inner resize pane (coarse) | `prefix + Ctrl+H/J/K/L` (repeatable) |
-| Inner resize pane (fine) | `prefix + Ctrl+Alt+H/J/K/L` (repeatable) |
+| Inner pane navigation | `Ctrl+Alt+h/j/k/l` |
+| Inner select window 1..9 | `Ctrl+Alt+1..9` |
+| Inner next window | `Ctrl+Alt+Tab` |
+| Inner prev window | `Ctrl+Alt+Shift+Tab` |
+
+**Prefix-based** — require outer prefix (`Ctrl-Space`) first:
+
+| Action | Key (after prefix) |
+|---|---|
+| Inner new window | `Ctrl+c` |
+| Inner close pane | `Ctrl+x` |
+| Inner zoom toggle | `Ctrl+z` |
+| Inner reload config | `Ctrl+r` |
+| Inner split horizontal | `Ctrl+\|` |
+| Inner split vertical | `Ctrl+-` |
+| Inner bottom pane 25% | `Ctrl+_` |
+| Inner right pane 33% | `Ctrl+\` |
+| Inner swap pane down / up | `Ctrl+>` / `Ctrl+<` |
+| Inner copy mode | `Ctrl+[` |
+| Inner swap window left / right | `Ctrl+Shift+←` / `Ctrl+Shift+→` |
+| Inner resize coarse | `Ctrl+H/J/K/L` (repeatable) |
+| Inner resize fine | `Ctrl+Alt+H/J/K/L` (repeatable) |
 
 #### Ghostty single-keystroke shortcuts
 
-The Ghostty config adds keybinds that eliminate the outer prefix press for inner tmux operations.
-Each sends the outer-prefix CSI u sequence + command CSI u in one keypress:
+Ghostty keybinds serve two purposes:
+1. Send proper CSI u sequences for combos macOS can't produce natively (digits, Tab)
+2. Eliminate the prefix press by sending prefix + command in one keystroke
 
-| Action | Ghostty shortcut |
-|---|---|
-| Inner new window | `Ctrl+Alt+c` |
-| Inner close pane | `Ctrl+Alt+x` |
-| Inner zoom toggle | `Ctrl+Alt+z` |
-| Inner split horizontal | `Ctrl+Alt+\|` (Ctrl+Alt+Shift+\\) |
-| Inner split vertical | `Ctrl+Alt+-` |
-| Inner bottom pane 25% | `Ctrl+Alt+_` (Ctrl+Alt+Shift+-) |
-| Inner right pane 33% | `Ctrl+Alt+\` |
-| Inner swap window L/R | `Ctrl+Alt+Shift+←/→` |
-| Inner resize coarse | `Ctrl+Alt+Shift+H/J/K/L` |
+| Action | Ghostty shortcut | Without Ghostty |
+|---|---|---|
+| Inner window select 1..9 | `Ctrl+Alt+1..9` | `Ctrl+Alt+1..9` (needs CSI u) |
+| Inner next window | `Ctrl+Alt+Tab` | `Ctrl+Alt+Tab` (needs CSI u) |
+| Inner prev window | `Ctrl+Alt+Shift+Tab` | `Ctrl+Alt+Shift+Tab` (needs CSI u) |
+| Inner new window | `Ctrl+Alt+c` | `prefix + Ctrl+c` |
+| Inner close pane | `Ctrl+Alt+x` | `prefix + Ctrl+x` |
+| Inner zoom toggle | `Ctrl+Alt+z` | `prefix + Ctrl+z` |
+| Inner reload config | `Ctrl+Alt+r` | `prefix + Ctrl+r` |
+| Inner split horizontal | `Ctrl+Alt+\|` (Ctrl+Alt+Shift+\\) | `prefix + Ctrl+\|` |
+| Inner split vertical | `Ctrl+Alt+-` | `prefix + Ctrl+-` |
+| Inner bottom pane 25% | `Ctrl+Alt+_` (Ctrl+Alt+Shift+-) | `prefix + Ctrl+_` |
+| Inner right pane 33% | `Ctrl+Alt+\` | `prefix + Ctrl+\` |
+| Inner swap pane down / up | `Ctrl+Alt+>/<` (Shift+./,) | `prefix + Ctrl+>/<` |
+| Inner copy mode | `Ctrl+Alt+[` | `prefix + Ctrl+[` |
+| Inner swap window L/R | `Ctrl+Alt+Shift+←/→` | `prefix + Ctrl+Shift+←/→` |
+| Inner resize coarse | `Ctrl+Alt+Shift+H/J/K/L` | `prefix + Ctrl+H/J/K/L` |
 
-Without Ghostty, these operations work via `prefix + Ctrl+key` (two keystrokes).
-See [tmux-zengarden README](https://github.com/roundzero-ai/tmux-zengarden) for full details.
+> **Note:** Inner pane navigation (`Ctrl+Alt+h/j/k/l`) needs no Ghostty keybind — works natively via tmux extended-keys. Inner fine resize (`prefix + Ctrl+Alt+H/J/K/L`) has no Ghostty shortcut — modifier stack is maxed. F12 REMOTE mode remains the universal fallback.
 
 ---
 
@@ -264,8 +292,6 @@ Prompt shows only what the tmux banner doesn't already display:
 | `status` | Exit code on failure only |
 
 > git branch and hostname are intentionally absent — they live in the tmux status bar.
-
-**Note on `oh-my-posh font install meslo`:** Running this installs MesloLGS NF, which is the font recommended by oh-my-posh's own docs. It is not needed here — we use **JetBrainsMono NFM** (a Nerd Font) which includes all required glyphs. Having both fonts installed is harmless.
 
 Theme file: `~/.config/oh-my-posh/zengarden.json`
 
@@ -288,6 +314,8 @@ macos-titlebar-style = transparent
 ```
 
 The blur + transparency is what makes tmux's `bg=default` pane backgrounds look frosted against the wallpaper.
+
+The config also unbinds Ghostty's default `Ctrl+Tab` / `Ctrl+Shift+Tab` (Ghostty tab switching) so these combos can be used for inner tmux window cycling.
 
 ---
 
@@ -339,7 +367,7 @@ All default yazi bindings (`hjkl`, `q`, `y`/`x`/`p`, `d`, etc.) remain unchanged
 tui-zening/
 ├── setup.sh          # main setup script
 ├── config/
-│   ├── ghostty       # Ghostty terminal config
+│   ├── ghostty       # Ghostty terminal config + inner tmux keybindings
 │   ├── nanorc        # nano editor config
 │   └── yazi/
 │       ├── yazi.toml    # manager, preview, tasks settings
