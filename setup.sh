@@ -309,6 +309,10 @@ touch "$RC_FILE"
 
 patch_rc() {
     local marker="$1" block="$2"
+    # Safety: ensure the marker appears in the block so future runs can detect it
+    if [[ "$block" != *"$marker"* ]]; then
+        die "patch_rc bug: marker '$marker' not found in block — would duplicate on every run"
+    fi
     if grep -qF "$marker" "$RC_FILE"; then
         info "$RC_FILE: '$marker' — already present."
     else
@@ -333,12 +337,6 @@ if [[ "$OS" == "Linux" ]]; then
 'export PATH="$HOME/.local/bin:$PATH"'
 fi
 
-# oh-my-posh — migrate old ~/themes.json path if present
-if grep -qF "themes.json" "$RC_FILE" && ! grep -qF "$OMP_CONFIG" "$RC_FILE"; then
-    info "$RC_FILE: migrating oh-my-posh config path → $OMP_CONFIG"
-    sed -i.bak "s|themes.json|.config/oh-my-posh/zengarden.json|g" "$RC_FILE"
-    rm -f "${RC_FILE}.bak"
-fi
 patch_rc "oh-my-posh init" \
 "# oh-my-posh shell prompt
 if [ \"\$TERM_PROGRAM\" != \"Apple_Terminal\" ]; then
@@ -352,14 +350,6 @@ fi
 
 # tmux auto-attach on Ghostty (local macOS)
 if [[ "$OS" == "Darwin" ]]; then
-    # Migrate old fixed session name → dynamic "Main | hostname"
-    if grep -qF 'attach-session -t main' "$RC_FILE" && ! grep -qF 'Main |' "$RC_FILE"; then
-        info "$RC_FILE: migrating local tmux session name → 'Main | \$(hostname -s)'"
-        sed -i.bak \
-            's#tmux attach-session -t main 2>/dev/null || tmux new-session -s main#_s="Main | $(hostname -s)"; tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"; unset _s#' \
-            "$RC_FILE"
-        rm -f "${RC_FILE}.bak"
-    fi
     patch_rc 'Main | $(hostname -s)' \
 '# Auto-attach or start tmux when opening a local Ghostty window
 if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
@@ -370,14 +360,6 @@ fi'
 fi
 
 # tmux auto-attach on SSH login (Mac Studio, DGX Spark)
-# Migrate old fixed session name → dynamic "RZ-AI | hostname"
-if grep -qF 'new-session -A -s RZ-AI' "$RC_FILE" && ! grep -qF 'RZ-AI |' "$RC_FILE"; then
-    info "$RC_FILE: migrating remote tmux session name → 'RZ-AI | \$(hostname -s)'"
-    sed -i.bak \
-        's#exec tmux new-session -A -s RZ-AI$#exec tmux new-session -A -s "RZ-AI | $(hostname -s)"#' \
-        "$RC_FILE"
-    rm -f "${RC_FILE}.bak"
-fi
 patch_rc 'new-session -A -s "RZ-AI |' \
 '# Auto-attach or start tmux on SSH login
 if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
@@ -401,7 +383,7 @@ fi
 
 # SSH mouse-reset wrapper — clears tmux mouse tracking on unexpected disconnect
 patch_rc "ssh_mouse_reset" \
-'# Reset mouse tracking after SSH disconnect (prevents tmux mouse mode gibberish)
+'# ssh_mouse_reset — clear tmux mouse tracking after SSH disconnect
 ssh() {
     command ssh "$@"
     printf '"'"'\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l'"'"'
