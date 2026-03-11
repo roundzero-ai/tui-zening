@@ -211,11 +211,13 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 
 | Action | Key |
 |---|---|
+| Inner pane navigation | `Ctrl+Alt+h/j/k/l` (prefix-free) |
 | Inner select window 1..9 | `Ctrl+Alt+1..9` (prefix-free) |
 | Inner next window | `Ctrl+Alt+Tab` (prefix-free) |
 | Inner prev window | `Ctrl+Alt+Shift+Tab` (prefix-free) |
 | Inner new window | `prefix + Ctrl+c` |
 | Inner close pane | `prefix + Ctrl+x` |
+| Inner zoom toggle | `prefix + Ctrl+z` |
 | Inner split horizontal | `prefix + Ctrl+\|` |
 | Inner split vertical | `prefix + Ctrl+-` |
 | Inner bottom pane 25% | `prefix + Ctrl+_` |
@@ -224,7 +226,25 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 | Inner resize pane (coarse) | `prefix + Ctrl+H/J/K/L` (repeatable) |
 | Inner resize pane (fine) | `prefix + Ctrl+Alt+H/J/K/L` (repeatable) |
 
-> Ghostty keybindings can optionally map single keystrokes (e.g. `Ctrl+Alt+n`) to trigger inner tmux commands without manually pressing the outer prefix — see [tmux-zengarden README](https://github.com/roundzero-ai/tmux-zengarden) for details.
+#### Ghostty single-keystroke shortcuts
+
+The Ghostty config adds keybinds that eliminate the outer prefix press for inner tmux operations.
+Each sends the outer-prefix CSI u sequence + command CSI u in one keypress:
+
+| Action | Ghostty shortcut |
+|---|---|
+| Inner new window | `Ctrl+Alt+c` |
+| Inner close pane | `Ctrl+Alt+x` |
+| Inner zoom toggle | `Ctrl+Alt+z` |
+| Inner split horizontal | `Ctrl+Alt+\|` (Ctrl+Alt+Shift+\\) |
+| Inner split vertical | `Ctrl+Alt+-` |
+| Inner bottom pane 25% | `Ctrl+Alt+_` (Ctrl+Alt+Shift+-) |
+| Inner right pane 33% | `Ctrl+Alt+\` |
+| Inner swap window L/R | `Ctrl+Alt+Shift+←/→` |
+| Inner resize coarse | `Ctrl+Alt+Shift+H/J/K/L` |
+
+Without Ghostty, these operations work via `prefix + Ctrl+key` (two keystrokes).
+See [tmux-zengarden README](https://github.com/roundzero-ai/tmux-zengarden) for full details.
 
 ---
 

@@ -24,3 +24,50 @@ window-save-state      = always
 macos-titlebar-style = transparent
 background-opacity   = 0.8
 background-blur      = 90
+
+# ── Inner tmux — single-keystroke Ctrl+Alt shortcuts ─────────
+# When running nested tmux (Ghostty → outer tmux → SSH → inner tmux),
+# these keybinds send the outer prefix (Ctrl+Space) + command key
+# as CSI u sequences in one shot, so the outer tmux routes the
+# command to the inner session — no manual prefix press needed.
+#
+# Pattern:  outer binding           → inner shortcut (add Ctrl)
+#           prefix + c  (new win)   → Ctrl+Alt+c
+#           prefix + |  (split h)   → Ctrl+Alt+Shift+\  (i.e. Ctrl+Alt+|)
+#           Alt+h       (pane nav)  → Ctrl+Alt+h  (handled by tmux, no keybind needed)
+#           Alt+1..9    (window #)  → Ctrl+Alt+1..9  (handled by tmux, no keybind needed)
+#
+# Prefix-free bindings (tmux handles natively via extended-keys, no Ghostty keybind needed):
+#   Ctrl+Alt+h/j/k/l    inner pane navigation
+#   Ctrl+Alt+1..9        inner window select
+#   Ctrl+Alt+Tab         inner next window
+#   Ctrl+Alt+Shift+Tab   inner prev window
+#
+# Prefix CSI u = \x1b[32;5u  (Ctrl+Space in kitty keyboard protocol)
+
+# Inner new window:      Ctrl+Alt+c
+keybind = ctrl+alt+c=text:\x1b[32;5u\x1b[99;5u
+# Inner close pane:      Ctrl+Alt+x
+keybind = ctrl+alt+x=text:\x1b[32;5u\x1b[120;5u
+# Inner zoom toggle:     Ctrl+Alt+z
+keybind = ctrl+alt+z=text:\x1b[32;5u\x1b[122;5u
+
+# Inner split horizontal:  Ctrl+Alt+|  (Ctrl+Alt+Shift+\)
+keybind = ctrl+alt+shift+backslash=text:\x1b[32;5u\x1b[92;6u
+# Inner split vertical:    Ctrl+Alt+-
+keybind = ctrl+alt+minus=text:\x1b[32;5u\x1b[45;5u
+# Inner bottom pane 25%:   Ctrl+Alt+_  (Ctrl+Alt+Shift+-)
+keybind = ctrl+alt+shift+minus=text:\x1b[32;5u\x1b[45;6u
+# Inner right pane 33%:    Ctrl+Alt+\
+keybind = ctrl+alt+backslash=text:\x1b[32;5u\x1b[92;5u
+
+# Inner swap window left:  Ctrl+Alt+Shift+←
+keybind = ctrl+alt+shift+left=text:\x1b[32;5u\x1b[1;6D
+# Inner swap window right: Ctrl+Alt+Shift+→
+keybind = ctrl+alt+shift+right=text:\x1b[32;5u\x1b[1;6C
+
+# Inner resize coarse:     Ctrl+Alt+Shift+H/J/K/L
+keybind = ctrl+alt+shift+h=text:\x1b[32;5u\x1b[104;6u
+keybind = ctrl+alt+shift+j=text:\x1b[32;5u\x1b[106;6u
+keybind = ctrl+alt+shift+k=text:\x1b[32;5u\x1b[107;6u
+keybind = ctrl+alt+shift+l=text:\x1b[32;5u\x1b[108;6u
