@@ -26,19 +26,29 @@ background-opacity   = 0.8
 background-blur      = 90
 
 # Outer tmux skip-prefix layer (Alt+key)
-# Only covers outer actions whose tmux bindings were changed to avoid Shift.
+# Alt+... acts as a one-chord alias for tmux prefix + key.
 # Prefix CSI u = \x1b[32;5u  (Ctrl+Space in kitty keyboard protocol)
 
 keybind = alt+backslash=text:\x1b[32;5u\\
+keybind = alt+minus=text:\x1b[32;5u-
 keybind = alt+equal=text:\x1b[32;5u=
+keybind = alt+z=text:\x1b[32;5uz
+keybind = alt+c=text:\x1b[32;5uc
+keybind = alt+x=text:\x1b[32;5ux
 keybind = alt+p=text:\x1b[32;5up
 keybind = alt+n=text:\x1b[32;5un
+keybind = alt+r=text:\x1b[32;5ur
+keybind = alt+left_bracket=text:\x1b[32;5u[
 keybind = alt+semicolon=text:\x1b[32;5u,
 keybind = alt+period=text:\x1b[32;5u.
 keybind = alt+left=text:\x1b[32;5u\x1b[D
 keybind = alt+down=text:\x1b[32;5u\x1b[B
 keybind = alt+up=text:\x1b[32;5u\x1b[A
 keybind = alt+right=text:\x1b[32;5u\x1b[C
+keybind = ctrl+alt+left=text:\x1b[32;5u\x1b[1;3D
+keybind = ctrl+alt+down=text:\x1b[32;5u\x1b[1;3B
+keybind = ctrl+alt+up=text:\x1b[32;5u\x1b[1;3A
+keybind = ctrl+alt+right=text:\x1b[32;5u\x1b[1;3C
 
 # Inner tmux single-keystroke Ctrl+Alt shortcuts
 # Ctrl+Alt keeps targeting the inner tmux; Alt alone targets the outer tmux layer above.

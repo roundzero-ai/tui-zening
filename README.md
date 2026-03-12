@@ -282,17 +282,24 @@ How it works:
 
 Ghostty adds a helper layer on top of tmux:
 
-- `Alt+...` skips the prefix for selected outer tmux bindings
+- `Alt+...` skips the prefix for the full outer prefix-based binding set
 - `Ctrl+Alt+...` skips the prefix for selected inner tmux bindings
 - prefix-free inner navigation like `Ctrl+Alt+h/j/k/l` still works natively via tmux extended-keys
 
 | Action | Ghostty shortcut | Equivalent tmux input |
 |---|---|---|
+| Outer resize fine | `Ctrl+Alt+←/↓/↑/→` | `prefix + Alt+←/↓/↑/→` |
 | Outer split horizontal | `Alt+\` | `prefix + \` |
+| Outer split vertical | `Alt+-` | `prefix + -` |
 | Outer bottom pane 25% | `Alt+=` | `prefix + =` |
+| Outer zoom pane | `Alt+z` | `prefix + z` |
+| Outer new window | `Alt+c` | `prefix + c` |
+| Outer close pane | `Alt+x` | `prefix + x` |
 | Outer swap pane down / up | `Alt+.` / `Alt+;` | `prefix + .` / `prefix + ,` |
 | Outer swap window L/R | `Alt+p` / `Alt+n` | `prefix + p` / `prefix + n` |
 | Outer resize coarse | `Alt+←/↓/↑/→` | `prefix + ←/↓/↑/→` |
+| Outer reload config | `Alt+r` | `prefix + r` |
+| Outer copy mode | `Alt+[` | `prefix + [` |
 | Inner select window 1..9 | `Ctrl+Alt+1..9` | `Ctrl+Alt+1..9` |
 | Inner next window | `Ctrl+Alt+Tab` | `Ctrl+Alt+Tab` |
 | Inner new window | `Ctrl+Alt+c` | `prefix + Ctrl+c` |
@@ -314,6 +321,7 @@ Maintenance rules for future updates:
 - Keep the same semantic pattern across all layers: outer tmux, inner tmux, then Ghostty convenience shortcut.
 - Avoid new bindings that require `Shift` for regular use; prefer letters, arrows, and unshifted punctuation.
 - If an outer binding changes and it has an inner equivalent, update the matching `Ctrl+...` inner form too.
+- Keep the full outer Ghostty alias set aligned with prefix-based outer actions: resize, split, pane-layout toggles, zoom, new/close, swaps, reload, and copy mode.
 - If an inner action has a Ghostty shortcut, update `config/ghostty` and this README in the same change.
 - Document tmux-native behavior first; document Ghostty as an optional alias layer second.
 
