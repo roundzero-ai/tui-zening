@@ -1,4 +1,4 @@
-# Ghostty config — tui_zening
+# Ghostty config - tui_zening
 # Deploy: setup.sh copies this to ~/Library/Application Support/com.mitchellh.ghostty/config
 # Reference: https://ghostty.org/docs/config
 
@@ -25,27 +25,26 @@ macos-titlebar-style = transparent
 background-opacity   = 0.8
 background-blur      = 90
 
-# ── Inner tmux — single-keystroke Ctrl+Alt shortcuts ─────────
-# When running nested tmux (Ghostty → outer tmux → SSH → inner tmux),
-# these keybinds let you operate the inner tmux without F12 REMOTE mode.
-#
-# Two categories:
-#
-# 1. Prefix-free inner bindings — Ghostty sends CSI u so outer tmux's
-#    root-table binding (bind -n C-M-...) fires and forwards to inner tmux.
-#    Needed because macOS Alt+digit produces special chars that tmux can't match.
-#      Ctrl+Alt+h/j/k/l       inner pane navigation  (no Ghostty keybind — works natively)
-#      Ctrl+Alt+1..9           inner window select    (Ghostty keybind required)
-#      Ctrl+Alt+Tab            inner next window      (Ghostty keybind required)
-#      Ctrl+Alt+Shift+Tab      inner prev window      (Ghostty keybind required)
-#
-# 2. Prefix-based inner bindings — Ghostty sends outer prefix (Ctrl+Space)
-#    + Ctrl+key as CSI u in one shot, eliminating the manual prefix press.
-#
+# Outer tmux skip-prefix layer (Alt+key)
+# Only covers outer actions whose tmux bindings were changed to avoid Shift.
 # Prefix CSI u = \x1b[32;5u  (Ctrl+Space in kitty keyboard protocol)
-# CSI u modifier: Ctrl=4, Alt=2, Shift=1, base=1  →  Ctrl+Alt = 7, Ctrl+Shift = 6
 
-# ── Prefix-free: inner window select  Ctrl+Alt+1..9 ───────────
+keybind = alt+backslash=text:\x1b[32;5u\\
+keybind = alt+equal=text:\x1b[32;5u=
+keybind = alt+p=text:\x1b[32;5up
+keybind = alt+n=text:\x1b[32;5un
+keybind = alt+semicolon=text:\x1b[32;5u,
+keybind = alt+period=text:\x1b[32;5u.
+keybind = alt+left=text:\x1b[32;5u\x1b[D
+keybind = alt+down=text:\x1b[32;5u\x1b[B
+keybind = alt+up=text:\x1b[32;5u\x1b[A
+keybind = alt+right=text:\x1b[32;5u\x1b[C
+
+# Inner tmux single-keystroke Ctrl+Alt shortcuts
+# Ctrl+Alt keeps targeting the inner tmux; Alt alone targets the outer tmux layer above.
+# CSI u modifier math: Ctrl=4, Alt=2, Shift=1, base=1 -> Ctrl+Alt = 7
+
+# Prefix-free: inner window select Ctrl+Alt+1..9
 keybind = ctrl+alt+1=text:\x1b[49;7u
 keybind = ctrl+alt+2=text:\x1b[50;7u
 keybind = ctrl+alt+3=text:\x1b[51;7u
@@ -56,47 +55,35 @@ keybind = ctrl+alt+7=text:\x1b[55;7u
 keybind = ctrl+alt+8=text:\x1b[56;7u
 keybind = ctrl+alt+9=text:\x1b[57;7u
 
-# ── Prefix-free: inner window cycle  Ctrl+Alt+Tab / Ctrl+Alt+Shift+Tab ─
-# Unbind Ghostty's default ctrl+tab (Ghostty tab switching) to avoid interference
+# Prefix-free: inner window cycle Ctrl+Alt+Tab
+# Unbind Ghostty's default ctrl+tab to avoid interference.
 keybind = ctrl+tab=unbind
 keybind = ctrl+shift+tab=unbind
 keybind = ctrl+alt+tab=text:\x1b[27;7;9~
-keybind = ctrl+alt+shift+tab=text:\x1b[27;8;9~
 
-# ── Prefix-based: inner new window   Ctrl+Alt+c ───────────────
+# Prefix-based: inner new window / close / zoom / reload
 keybind = ctrl+alt+c=text:\x1b[32;5u\x1b[99;5u
-# ── Prefix-based: inner close pane   Ctrl+Alt+x ───────────────
 keybind = ctrl+alt+x=text:\x1b[32;5u\x1b[120;5u
-# ── Prefix-based: inner zoom toggle  Ctrl+Alt+z ───────────────
 keybind = ctrl+alt+z=text:\x1b[32;5u\x1b[122;5u
-# ── Prefix-based: inner reload cfg   Ctrl+Alt+r ───────────────
 keybind = ctrl+alt+r=text:\x1b[32;5u\x1b[114;5u
 
-# ── Prefix-based: inner splits ────────────────────────────────
-# Inner split horizontal:  Ctrl+Alt+|  (Ctrl+Alt+Shift+\)
-keybind = ctrl+alt+shift+backslash=text:\x1b[32;5u\x1b[92;6u
-# Inner split vertical:    Ctrl+Alt+-
-keybind = ctrl+alt+minus=text:\x1b[32;5u\x1b[45;5u
-# Inner bottom pane 25%:   Ctrl+Alt+_  (Ctrl+Alt+Shift+-)
-keybind = ctrl+alt+shift+minus=text:\x1b[32;5u\x1b[45;6u
-# Inner right pane 33%:    Ctrl+Alt+\
+# Prefix-based: inner splits and smart pane toggles
 keybind = ctrl+alt+backslash=text:\x1b[32;5u\x1b[92;5u
+keybind = ctrl+alt+minus=text:\x1b[32;5u\x1b[45;5u
+keybind = ctrl+alt+equal=text:\x1b[32;5u\x1b[61;5u
+keybind = ctrl+alt+slash=text:\x1b[32;5u\x1b[47;5u
 
-# ── Prefix-based: inner swap window left/right ────────────────
-keybind = ctrl+alt+shift+left=text:\x1b[32;5u\x1b[1;6D
-keybind = ctrl+alt+shift+right=text:\x1b[32;5u\x1b[1;6C
+# Prefix-based: inner pane and window swaps
+keybind = ctrl+alt+semicolon=text:\x1b[32;5u\x1b[44;5u
+keybind = ctrl+alt+period=text:\x1b[32;5u\x1b[46;5u
+keybind = ctrl+alt+p=text:\x1b[32;5u\x1b[112;5u
+keybind = ctrl+alt+n=text:\x1b[32;5u\x1b[110;5u
 
-# ── Prefix-based: inner resize coarse  Ctrl+Alt+Shift+H/J/K/L ─
-keybind = ctrl+alt+shift+h=text:\x1b[32;5u\x1b[104;6u
-keybind = ctrl+alt+shift+j=text:\x1b[32;5u\x1b[106;6u
-keybind = ctrl+alt+shift+k=text:\x1b[32;5u\x1b[107;6u
-keybind = ctrl+alt+shift+l=text:\x1b[32;5u\x1b[108;6u
-
-# ── Prefix-based: inner pane swap down/up ─────────────────────
-# Ctrl+Alt+>  (Ctrl+Alt+Shift+.)
-keybind = ctrl+alt+shift+period=text:\x1b[32;5u\x1b[46;6u
-# Ctrl+Alt+<  (Ctrl+Alt+Shift+,)
-keybind = ctrl+alt+shift+comma=text:\x1b[32;5u\x1b[44;6u
-
-# ── Prefix-based: inner copy mode  Ctrl+Alt+[ ─────────────────
+# Prefix-based: inner copy mode
 keybind = ctrl+alt+left_bracket=text:\x1b[32;5u\x1b[91;5u
+
+# Prefix-based: inner resize coarse Ctrl+Alt+arrow
+keybind = ctrl+alt+left=text:\x1b[32;5u\x1b[1;5D
+keybind = ctrl+alt+down=text:\x1b[32;5u\x1b[1;5B
+keybind = ctrl+alt+up=text:\x1b[32;5u\x1b[1;5A
+keybind = ctrl+alt+right=text:\x1b[32;5u\x1b[1;5C
