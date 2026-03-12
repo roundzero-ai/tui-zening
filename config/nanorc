@@ -2,7 +2,7 @@
 # Prevent pasted content from being reformatted or mangled
 
 # No auto-indent: pasted indentation is preserved as-is
-set noautoindent
+unset autoindent
 
 # No line wrapping: long lines are not broken mid-paste
 set nowrap
@@ -11,5 +11,5 @@ set nowrap
 # Show line numbers
 set linenumbers
 
-# Smooth scrolling
-set smooth
+# Keep config compatible with older nano builds
+# (some distros do not support the `smooth` option)
