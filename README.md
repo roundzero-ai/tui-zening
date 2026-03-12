@@ -137,6 +137,7 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 | Block | Marker used for deduplication |
 |---|---|
 | `export TERM=xterm-256color` | `TERM=xterm-256color` |
+| `export CLICOLOR=1` | `CLICOLOR=1` (macOS only) |
 | `export PATH="$HOME/.local/bin:$PATH"` | `.local/bin` (Linux only) |
 | oh-my-posh prompt init | `oh-my-posh init` |
 | zsh-autosuggestions source | `zsh-autosuggestions.zsh` (zsh only) |
