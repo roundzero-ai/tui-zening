@@ -32,6 +32,7 @@ background-blur      = 90
 keybind = alt+backslash=text:\x1b[32;5u\\
 keybind = alt+minus=text:\x1b[32;5u-
 keybind = alt+equal=text:\x1b[32;5u=
+keybind = alt+slash=text:\x1b[32;5u/
 keybind = alt+z=text:\x1b[32;5uz
 keybind = alt+c=text:\x1b[32;5uc
 keybind = alt+x=text:\x1b[32;5ux

@@ -292,6 +292,7 @@ Ghostty adds a helper layer on top of tmux:
 | Outer split horizontal | `Alt+\` | `prefix + \` |
 | Outer split vertical | `Alt+-` | `prefix + -` |
 | Outer bottom pane 25% | `Alt+=` | `prefix + =` |
+| Outer right pane 33% | `Alt+/` | `prefix + /` |
 | Outer zoom pane | `Alt+z` | `prefix + z` |
 | Outer new window | `Alt+c` | `prefix + c` |
 | Outer close pane | `Alt+x` | `prefix + x` |
