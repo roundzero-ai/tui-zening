@@ -218,7 +218,6 @@ Panes:
 |---|---|
 | Move focus | `Alt+h/j/k/l` or `prefix + h/j/k/l` |
 | Resize coarse | `prefix + ←/↓/↑/→` |
-| Resize fine | `prefix + Alt+←/↓/↑/→` |
 | Split horizontal | `prefix + \` |
 | Split vertical | `prefix + -` |
 | Bottom pane 25% | `prefix + =` |
@@ -269,7 +268,6 @@ Prefix-based inner actions after outer `Ctrl+Space`:
 | Swap inner pane down / up | `Ctrl+.` / `Ctrl+,` |
 | Swap inner window left / right | `Ctrl+p` / `Ctrl+n` |
 | Resize inner pane coarse | `Ctrl+←/↓/↑/→` |
-| Resize inner pane fine | `Ctrl+Alt+←/↓/↑/→` |
 | Inner copy mode | `Ctrl+[` |
 
 How it works:
@@ -288,7 +286,6 @@ Ghostty adds a helper layer on top of tmux:
 
 | Action | Ghostty shortcut | Equivalent tmux input |
 |---|---|---|
-| Outer resize fine | `Ctrl+Alt+←/↓/↑/→` | `prefix + Alt+←/↓/↑/→` |
 | Outer split horizontal | `Alt+\` | `prefix + \` |
 | Outer split vertical | `Alt+-` | `prefix + -` |
 | Outer bottom pane 25% | `Alt+=` | `prefix + =` |
