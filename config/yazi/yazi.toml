@@ -3,7 +3,7 @@
 # Only override defaults; unset options use yazi's built-in values.
 
 [mgr]
-ratio         = [1, 3, 4]   # parent | current | preview column widths
+ratio         = [1, 3, 5]   # parent | current | preview column widths
 sort_by       = "natural"   # natural sort (1, 2, 10 vs 1, 10, 2)
 sort_sensitive = false
 sort_reverse  = false
