@@ -306,10 +306,11 @@ if [[ "$INSTALL_YAZI" == true ]]; then
                     *) die "Unsupported arch for lazygit binary: $ARCH. See https://github.com/jesseduffield/lazygit" ;;
                 esac
 
-                LAZYGIT_VERSION="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep -m1 '"tag_name":' | cut -d '"' -f4)"
+                LAZYGIT_TMP="$(mktemp -d)"
+                curl -fsSL "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" -o "$LAZYGIT_TMP/releases.json"
+                LAZYGIT_VERSION="$(grep -m1 '"tag_name":' "$LAZYGIT_TMP/releases.json" | cut -d '"' -f4)"
                 [[ -n "$LAZYGIT_VERSION" ]] || die "Unable to resolve latest lazygit version from GitHub API."
 
-                LAZYGIT_TMP="$(mktemp -d)"
                 curl -fL "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_${LAZYGIT_ARCH}.tar.gz" \
                     -o "$LAZYGIT_TMP/lazygit.tar.gz"
                 tar -xzf "$LAZYGIT_TMP/lazygit.tar.gz" -C "$LAZYGIT_TMP" lazygit
