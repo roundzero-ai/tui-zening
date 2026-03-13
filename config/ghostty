@@ -40,7 +40,7 @@ keybind = alt+p=text:\x1b[32;5up
 keybind = alt+n=text:\x1b[32;5un
 keybind = alt+r=text:\x1b[32;5ur
 keybind = alt+left_bracket=text:\x1b[32;5u[
-keybind = alt+semicolon=text:\x1b[32;5u,
+keybind = alt+comma=text:\x1b[32;5u,
 keybind = alt+period=text:\x1b[32;5u.
 keybind = alt+left=text:\x1b[32;5u\x1b[D
 keybind = alt+down=text:\x1b[32;5u\x1b[B
@@ -85,7 +85,7 @@ keybind = ctrl+alt+equal=text:\x1b[32;5u\x1b[61;5u
 keybind = ctrl+alt+slash=text:\x1b[32;5u\x1b[47;5u
 
 # Prefix-based: inner pane and window swaps
-keybind = ctrl+alt+semicolon=text:\x1b[32;5u\x1b[44;5u
+keybind = ctrl+alt+comma=text:\x1b[32;5u\x1b[44;5u
 keybind = ctrl+alt+period=text:\x1b[32;5u\x1b[46;5u
 keybind = ctrl+alt+p=text:\x1b[32;5u\x1b[112;5u
 keybind = ctrl+alt+n=text:\x1b[32;5u\x1b[110;5u
