@@ -368,7 +368,7 @@ fi'
 
 # yazi `y` wrapper — changes shell CWD to directory yazi exits in
 if [[ "$INSTALL_YAZI" == true ]]; then
-    patch_rc "yazi --cwd-file" \
+    patch_rc "yazi-cwd.XXXXXX" \
 '# yazi shell wrapper: `y` to launch yazi and cd into the last directory on exit
 function y() {
     local tmp cwd
