@@ -36,7 +36,7 @@ bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi]
 | `--headless` | SSH-only mode: skip Ghostty install and fonts. Use on machines accessed only via SSH. |
 | `--no-ghostty` | Skip Ghostty installation and config deployment |
 | `--no-fonts` | Skip JetBrainsMono Nerd Font installation |
-| `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) file manager, deploy config to `~/.config/yazi/`, and add `y` shell wrapper (opt-in) |
+| `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) + [lazygit](https://github.com/jesseduffield/lazygit), deploy yazi config to `~/.config/yazi/`, add `y` shell wrapper, and add in-yazi `g l` lazygit shortcut (opt-in) |
 
 ---
 
@@ -110,6 +110,7 @@ bash setup.sh --yazi
 | JetBrainsMono Nerd Font | ✓ | ✓ | — |
 | Ghostty | ✓ brew cask | ✓ pkg manager / snap | — |
 | yazi | opt-in `--yazi` | opt-in `--yazi` | opt-in `--yazi` |
+| lazygit | opt-in `--yazi` | opt-in `--yazi` | opt-in `--yazi` |
 
 ---
 
@@ -385,7 +386,7 @@ This will pull the latest `tmux-zengarden`, re-deploy configs, and skip already-
 
 ---
 
-## Yazi File Manager
+## Yazi + LazyGit
 
 Installed opt-in via `--yazi`. Configures:
 
@@ -397,6 +398,17 @@ Installed opt-in via `--yazi`. Configures:
 
 The `y` shell function is added to your RC file — use it instead of `yazi` to automatically `cd` into the directory you were browsing when you quit.
 
+`lazygit` is also installed, and is bound in yazi to `g l` (press `g`, then `l`) using a blocking shell command.
+
+### Launch Flow
+
+```bash
+y                    # or: yazi /path/to/repo
+# inside yazi, press g then l
+```
+
+In lazygit, press `q` to return to yazi.
+
 ### Key Bindings Added
 
 | Key | Action |
@@ -405,6 +417,7 @@ The `y` shell function is added to your RC file — use it instead of `yazi` to 
 | `c c` / `c d` / `c f` / `c n` | Copy full path / dir / filename / name-no-ext |
 | `, m` / `, s` / `, n` / `, e` | Sort by modified / size / natural / extension |
 | `g h` / `g d` / `g p` / `g c` / `g t` | Jump to home / Downloads / Projects / .config / /tmp |
+| `g l` | Open lazygit (returns to yazi on quit) |
 | `Ctrl+t` | New tab (current directory) |
 | `←` / `→` | Parent dir / enter directory (arrow-key fallback) |
 

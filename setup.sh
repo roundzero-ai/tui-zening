@@ -13,7 +13,7 @@
 #                   Use this on machines you only access via SSH
 #    --no-ghostty   Skip Ghostty installation and config
 #    --no-fonts     Skip font installation
-#    --yazi         Install yazi file manager (opt-in)
+#    --yazi         Install yazi + lazygit integration (opt-in)
 # ============================================================
 
 set -euo pipefail
@@ -263,7 +263,7 @@ fi
 cp "$SCRIPT_DIR/config/nanorc" "$HOME/.nanorc"
 info "nanorc deployed → ~/.nanorc"
 
-# ── 10. Yazi file manager (opt-in via --yazi) ────────────────
+# ── 10. Yazi file manager + lazygit integration (opt-in via --yazi) ──
 if [[ "$INSTALL_YAZI" == true ]]; then
     if command -v yazi &>/dev/null; then
         info "yazi — already installed."
@@ -286,6 +286,39 @@ if [[ "$INSTALL_YAZI" == true ]]; then
             chmod +x "$HOME/.local/bin/yazi"
             rm -rf "$YAZI_TMP"
             success "yazi installed → ~/.local/bin/yazi"
+        fi
+    fi
+
+    # lazygit for in-Yazi Git UI
+    if command -v lazygit &>/dev/null; then
+        info "lazygit — already installed."
+    else
+        info "Installing lazygit..."
+        if [[ "$OS" == "Darwin" ]]; then
+            brew install lazygit
+        else
+            if $PM_INSTALL lazygit 2>/dev/null && command -v lazygit &>/dev/null; then
+                success "lazygit installed via package manager."
+            else
+                case "$ARCH" in
+                    aarch64|arm64) LAZYGIT_ARCH="arm64" ;;
+                    x86_64)        LAZYGIT_ARCH="x86_64" ;;
+                    *) die "Unsupported arch for lazygit binary: $ARCH. See https://github.com/jesseduffield/lazygit" ;;
+                esac
+
+                LAZYGIT_VERSION="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep -m1 '"tag_name":' | cut -d '"' -f4)"
+                [[ -n "$LAZYGIT_VERSION" ]] || die "Unable to resolve latest lazygit version from GitHub API."
+
+                LAZYGIT_TMP="$(mktemp -d)"
+                curl -fL "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_${LAZYGIT_ARCH}.tar.gz" \
+                    -o "$LAZYGIT_TMP/lazygit.tar.gz"
+                tar -xzf "$LAZYGIT_TMP/lazygit.tar.gz" -C "$LAZYGIT_TMP" lazygit
+                mkdir -p "$HOME/.local/bin"
+                cp "$LAZYGIT_TMP/lazygit" "$HOME/.local/bin/lazygit"
+                chmod +x "$HOME/.local/bin/lazygit"
+                rm -rf "$LAZYGIT_TMP"
+                success "lazygit installed → ~/.local/bin/lazygit"
+            fi
         fi
     fi
 
@@ -399,6 +432,7 @@ echo "  oh-my-posh theme  $OMP_CONFIG"
 [[ "$SKIP_GHOSTTY" == false ]] && echo "  Ghostty config    $GHOSTTY_CONF"
 echo "  nanorc            ~/.nanorc"
 [[ "$INSTALL_YAZI" == true ]] && echo "  yazi              $(command -v yazi 2>/dev/null || echo '~/.local/bin/yazi')"
+[[ "$INSTALL_YAZI" == true ]] && echo "  lazygit           $(command -v lazygit 2>/dev/null || echo '~/.local/bin/lazygit')"
 [[ "$INSTALL_YAZI" == true ]] && echo "  yazi config       ~/.config/yazi/"
 echo ""
 echo -e "  ${BOLD}Next steps:${RESET}"
@@ -407,6 +441,7 @@ echo -e "  ${BOLD}Next steps:${RESET}"
 echo "  • Reload shell:  source $RC_FILE"
 echo "  • Start tmux:    tmux new -s \"Main | \$(hostname -s)\""
 [[ "$INSTALL_YAZI" == true ]] && echo "  • Launch yazi:   y   (or 'yazi' to skip CWD change on exit)"
+[[ "$INSTALL_YAZI" == true ]] && echo "  • In yazi, press g then l to open lazygit"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
 echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
