@@ -75,20 +75,53 @@ info "Detected: $OS / $ARCH / $CURRENT_SHELL → patching $RC_FILE"
 
 # ── Linux: package manager ────────────────────────────────────
 if [[ "$OS" == "Linux" ]]; then
+    if [[ "$EUID" -eq 0 ]]; then
+        SUDO=""
+    else
+        command -v sudo &>/dev/null || die "sudo is required on Linux when not running as root."
+        SUDO="sudo"
+        if [[ ! -t 0 ]]; then
+            die "This setup needs sudo but no interactive TTY is available. Re-run in a terminal or run as root."
+        fi
+        info "Requesting sudo access..."
+        $SUDO -v
+    fi
+
+    export DEBIAN_FRONTEND=noninteractive
+
     if command -v apt-get &>/dev/null; then
-        PM_INSTALL="sudo apt-get install -y"
-        PM_UPDATE="sudo apt-get update -y"
+        PM_INSTALL="$SUDO apt-get install -y"
+        PM_UPDATE="$SUDO apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::ForceIPv4=true"
     elif command -v dnf &>/dev/null; then
-        PM_INSTALL="sudo dnf install -y"
-        PM_UPDATE="sudo dnf check-update -y || true"
+        PM_INSTALL="$SUDO dnf install -y"
+        PM_UPDATE="$SUDO dnf makecache -y"
     elif command -v pacman &>/dev/null; then
-        PM_INSTALL="sudo pacman -S --noconfirm"
-        PM_UPDATE="sudo pacman -Sy"
+        PM_INSTALL="$SUDO pacman -S --noconfirm"
+        PM_UPDATE="$SUDO pacman -Sy"
     else
         die "No supported package manager found (apt, dnf, pacman)."
     fi
-    info "Updating package index..."
-    $PM_UPDATE
+
+    PM_UPDATED=false
+    run_pm_update_once() {
+        if [[ "$PM_UPDATED" == true ]]; then
+            return 0
+        fi
+        info "Updating package index..."
+        PM_UPDATED=true
+        if command -v timeout &>/dev/null; then
+            if ! timeout 300s bash -lc "$PM_UPDATE"; then
+                warn "Package index update timed out/failed after 5 minutes; continuing with existing package metadata."
+                return 1
+            fi
+        else
+            if ! eval "$PM_UPDATE"; then
+                warn "Package index update failed; continuing with existing package metadata."
+                return 1
+            fi
+        fi
+        return 0
+    }
 fi
 
 # ── Helper: install a package if command is missing ───────────
@@ -96,8 +129,14 @@ install_pkg() {
     local cmd="$1" pkg="${2:-$1}"
     if ! command -v "$cmd" &>/dev/null; then
         info "Installing $pkg..."
-        if [[ "$OS" == "Darwin" ]]; then brew install "$pkg"
-        else $PM_INSTALL "$pkg"; fi
+        if [[ "$OS" == "Darwin" ]]; then
+            brew install "$pkg"
+        else
+            if ! $PM_INSTALL "$pkg"; then
+                run_pm_update_once || true
+                $PM_INSTALL "$pkg"
+            fi
+        fi
     else
         info "$cmd — already installed."
     fi
@@ -206,7 +245,7 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
                 success "Ghostty installed via package manager."
             elif command -v snap &>/dev/null; then
                 info "Package manager failed — trying snap..."
-                sudo snap install ghostty --classic
+                $SUDO snap install ghostty --classic
                 success "Ghostty installed via snap."
             else
                 warn "Ghostty not available — skipping."
