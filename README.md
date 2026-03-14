@@ -5,7 +5,7 @@ One-command terminal environment setup for consistent coding experience across *
 Installs and configures:
 - **Ghostty** — terminal (transparency, blur, font)
 - **oh-my-posh** — shell prompt (path · python · exit status)
-- **tmux ZenGarden** — modern tmux with colored tabs, system stats, vim navigation
+- **tmux ZenGarden** — modern tmux with colored tabs, mouse-clickable outer/inner tabs, system stats, vim navigation
 
 ---
 
@@ -325,6 +325,11 @@ Maintenance rules for future updates:
 - Document tmux-native behavior first; document Ghostty as an optional alias layer second.
 
 F12 REMOTE mode remains the universal fallback when you want all keys to pass straight through to the inner tmux.
+
+Mouse behavior:
+
+- clicking outer tmux window tabs selects outer windows
+- clicking inner tmux window tabs also works from nested sessions (mouse events are forwarded when inner tmux mouse mode is active)
 
 ---
 
