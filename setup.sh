@@ -240,12 +240,12 @@ else
 fi
 
 # ── 8. tmux ZenGarden (clone/update + deploy) ─────────────────
-ZENGARDEN_DIR="$HOME/Projects/tmux_zengarden"
+ZENGARDEN_DIR="$SCRIPT_DIR/.cache/tmux-zengarden"
 ZENGARDEN_REPO="https://github.com/roundzero-ai/tmux-zengarden.git"
 
 if [[ ! -d "$ZENGARDEN_DIR/.git" ]]; then
     info "Cloning tmux-zengarden..."
-    mkdir -p "$HOME/Projects"
+    mkdir -p "$(dirname "$ZENGARDEN_DIR")"
     git clone "$ZENGARDEN_REPO" "$ZENGARDEN_DIR"
 else
     info "Updating tmux-zengarden..."

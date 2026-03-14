@@ -180,7 +180,7 @@ Resets mouse tracking modes after every SSH exit to prevent raw escape sequences
 
 ## tmux ZenGarden
 
-The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.com/roundzero-ai/tmux-zengarden)** — cloned on first run, updated on every subsequent run via `git pull`.
+The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.com/roundzero-ai/tmux-zengarden)** — cloned into `./.cache/tmux-zengarden` on first run, updated on every subsequent run via `git pull`.
 
 ### Status Bar
 
