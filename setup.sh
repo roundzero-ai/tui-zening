@@ -159,6 +159,18 @@ install_pkg curl curl
 install_pkg bc   bc      # required by tmux-zengarden memory.sh
 [[ "$OS" == "Linux" ]] && install_pkg unzip unzip   # needed for yazi binary
 
+# macOS ships pico 5.09 as /usr/bin/nano — it lacks bracketed paste support,
+# which causes multi-line paste into nano (inside tmux) to lose line breaks.
+# Install GNU nano via Homebrew so the modern version takes precedence.
+if [[ "$OS" == "Darwin" ]]; then
+    if ! brew list nano &>/dev/null; then
+        info "Installing GNU nano (macOS system nano lacks bracketed paste)..."
+        brew install nano
+    else
+        info "GNU nano (brew) — already installed."
+    fi
+fi
+
 # ── 3. tmux ───────────────────────────────────────────────────
 install_pkg tmux tmux
 
