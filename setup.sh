@@ -300,7 +300,11 @@ if [[ ! -d "$ZENGARDEN_DIR/.git" ]]; then
     git clone "$ZENGARDEN_REPO" "$ZENGARDEN_DIR"
 else
     info "Updating tmux-zengarden..."
-    git -C "$ZENGARDEN_DIR" pull --ff-only
+    if ! git -C "$ZENGARDEN_DIR" pull --ff-only 2>/dev/null; then
+        warn "Cache diverged from upstream — resetting to origin/main."
+        git -C "$ZENGARDEN_DIR" fetch origin
+        git -C "$ZENGARDEN_DIR" reset --hard origin/main
+    fi
 fi
 
 info "Deploying tmux ZenGarden config..."
