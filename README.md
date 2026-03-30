@@ -186,13 +186,13 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 
 ```
  ≋ ZenGarden  user@host     1:project  2:folder>nvim  3:user@remote
-  session                   CPU 18%  MEM 8.2G 51%  GPU 20%  14:35 Fri
+  session                   CPU 18% | UMA 8.2G/16G 51% | GPU 20%      14:35 Fri
 ```
 
 - **Line 0** — Brand pill + identity (left) · Colored window tabs (right)
-- **Line 1** — Session pill (left) · CPU · RAM · GPU · time (right)
+- **Line 1** — Session pill (left) · CPU · RAM/UMA · GPU · VRAM · time (right)
 - **Window tab labels**: idle shell → `folder` · program running → `folder>program` · SSH → `user@host`
-- GPU stats: `ioreg` on Apple Silicon (no sudo) · `nvidia-smi` on DGX Spark (UMA-aware for GB10)
+- GPU stats: `ioreg` on Apple Silicon, `tegrastats` on Jetson/Orin, `nvidia-smi` on NVIDIA Linux; UMA machines merge RAM + VRAM into a single `UMA` metric
 
 ### Key Bindings
 
