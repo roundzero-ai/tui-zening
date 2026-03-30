@@ -156,7 +156,6 @@ fi
 # ── 2. Core dependencies ──────────────────────────────────────
 install_pkg git  git
 install_pkg curl curl
-install_pkg bc   bc      # required by tmux-zengarden memory.sh
 [[ "$OS" == "Linux" ]] && install_pkg unzip unzip   # needed for yazi binary
 
 # macOS ships pico 5.09 as /usr/bin/nano — it lacks bracketed paste support,
@@ -500,11 +499,11 @@ echo "  • Start tmux:    tmux new -s \"Main | \$(hostname -s)\""
 [[ "$INSTALL_YAZI" == true ]] && echo "  • In yazi, press g then l to open lazygit"
 echo ""
 echo -e "  ${BOLD}Tmux key bindings:${RESET}"
-echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+| / prefix+-"
-echo "  Bottom pane 25%: prefix+_  |  Right pane 33%: prefix+\\"
-echo "  Resize: prefix+H/J/K/L  |  Windows: Alt+1-9  |  Zoom: prefix+z"
-echo "  Window cycle: Alt+Tab / Alt+Shift+Tab"
+echo "  Prefix: Ctrl-Space  |  Pane nav: Alt+h/j/k/l  |  Split: prefix+\\ / prefix+-"
+echo "  Bottom pane 25%: prefix+=  |  Right pane 33%: prefix+/"
+echo "  Resize: prefix+Arrow keys  |  Windows: Alt+1-9  |  Zoom: prefix+z"
+echo "  Window cycle: Alt+Tab"
 echo "  Nested tmux: F12 (REMOTE mode) or Ctrl+Alt combos (inner without REMOTE)"
-echo "  Inner window select: Ctrl+Alt+1-9  |  Inner cycle: Ctrl+Alt+Tab / Ctrl+Alt+Shift+Tab"
+echo "  Inner window select: Ctrl+Alt+1-9  |  Inner cycle: Ctrl+Alt+Tab"
 echo "  Inner new window: prefix+Ctrl+c  |  Inner close pane: prefix+Ctrl+x"
 echo ""
