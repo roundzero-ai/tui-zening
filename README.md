@@ -180,19 +180,20 @@ Resets mouse tracking modes after every SSH exit to prevent raw escape sequences
 
 ## tmux ZenGarden
 
-The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.com/roundzero-ai/tmux-zengarden)** — cloned into `./.cache/tmux-zengarden` on first run, updated on every subsequent run via `git pull`.
+The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.com/roundzero-ai/tmux-zengarden)** — cloned into `./.cache/tmux-zengarden` on first run and updated on every subsequent run via `git pull`.
 
 ### Status Bar
 
 ```
  ≋ ZenGarden  user@host     1:project  2:folder>nvim  3:user@remote
   session                   CPU 18% | UMA 8.2G/16G 51% | GPU 20%      14:35 Fri
+  session                   CPU 22% | RAM 12G/64G 19% | GPU 31% | VRAM 4.8G/16G 30%      14:35 Fri
 ```
 
 - **Line 0** — Brand pill + identity (left) · Colored window tabs (right)
-- **Line 1** — Session pill (left) · CPU · RAM/UMA · GPU · VRAM · time (right)
+- **Line 1** — Session pill (left) · cached CPU · RAM/UMA · GPU · VRAM · time (right)
 - **Window tab labels**: idle shell → `folder` · program running → `folder>program` · SSH → `user@host`
-- GPU stats: `ioreg` on Apple Silicon, `tegrastats` on Jetson/Orin, `nvidia-smi` on NVIDIA Linux; UMA machines merge RAM + VRAM into a single `UMA` metric
+- GPU stats: `top` + `vm_stat` + `ioreg` on Apple Silicon, `tegrastats` on Jetson/Orin, `top` + `free` + `nvidia-smi` on NVIDIA Linux; UMA machines render `CPU | UMA | GPU`, discrete NVIDIA hosts render `CPU | RAM | GPU | VRAM`
 
 ### Key Bindings
 
