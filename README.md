@@ -52,7 +52,7 @@ bash setup.sh
 - Deploys Ghostty config with inner-tmux keybindings (transparency, blur, JetBrainsMono)
 - Installs zsh-autosuggestions
 - Patches `~/.zshrc`
-- Sets up tmux auto-attach: opens Ghostty → outer tmux session `Main | hostname`
+- Sets up tmux auto-attach: opens Ghostty → attaches to live tmux session if any, else outer tmux session named after the short hostname
 
 ### Mac Studio Ultra (local or remote via SSH, zsh)
 
@@ -118,9 +118,11 @@ bash setup.sh --yazi
 
 The intended workflow:
 
-1. **Local device** (MacBook Pro / Mac Studio): Ghostty opens → outer tmux session `Main | hostname`
+1. **Local device** (MacBook Pro / Mac Studio): Ghostty opens → outer tmux session named `hostname`
 2. **Each tmux window** SSHs to a remote device
-3. **Remote device** runs inner tmux session `RZ-AI | hostname`
+3. **Remote device** runs inner tmux session named `hostname` (same rule — attach to any live session, else create one)
+
+Session naming is now unified across both local and SSH entry points: a single block in your RC file attaches to whatever tmux session is already live on the machine, or creates one named after the short hostname if none exists. No more `Main | …` vs `RZ-AI | …` split.
 
 Two ways to control the inner tmux:
 
@@ -142,29 +144,29 @@ The script patches `~/.zshrc` (macOS/zsh) or `~/.bashrc` (Linux/bash). Each bloc
 | `export PATH="$HOME/.local/bin:$PATH"` | `.local/bin` (Linux only) |
 | oh-my-posh prompt init | `oh-my-posh init` |
 | zsh-autosuggestions source | `zsh-autosuggestions.zsh` (zsh only) |
-| Ghostty tmux auto-attach (`Main \| hostname`) | `Main | $(hostname -s)` (macOS only) |
-| SSH tmux auto-attach (`RZ-AI \| hostname`) | `new-session -A -s "RZ-AI \|` |
+| tmux auto-attach (unified Ghostty + SSH) | `tui_zening: auto-attach tmux` |
 | SSH mouse-tracking reset | `ssh_mouse_reset` |
+
+On upgrade, `setup.sh` also removes the two legacy blocks (`# Auto-attach or start tmux when opening a local Ghostty window` and `# Auto-attach or start tmux on SSH login`) before adding the unified one.
 
 ### tmux Auto-Attach Behaviour
 
-**Local — MacBook + Ghostty** (added to `~/.zshrc` on macOS):
-```zsh
-if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
-  _s="Main | $(hostname -s)"
-  tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"
-  unset _s
-fi
-```
-Session name: `Main | macbook-pro`
+A single block is appended to your RC file — same logic on macOS Ghostty and over SSH:
 
-**Remote — via SSH** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
-if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
-  exec tmux new-session -A -s "RZ-AI | $(hostname -s)"
+# tui_zening: auto-attach tmux on interactive Ghostty or SSH shell.
+# Attaches to any existing session if one is live; otherwise starts a new
+# one named after the short hostname.
+if [ -z "$TMUX" ] && [ -t 1 ] && { [ -n "$SSH_TTY" ] || [ "$TERM_PROGRAM" = "ghostty" ]; }; then
+  if tmux ls >/dev/null 2>&1; then
+    exec tmux attach
+  else
+    exec tmux new-session -s "$(hostname -s)"
+  fi
 fi
 ```
-Session name: `RZ-AI | mac-studio` or `RZ-AI | dgx-spark`
+
+Resulting session name (when newly created): the short hostname, e.g. `macbook-pro`, `mac-studio`, or `dgx-spark`. If a session is already live (regardless of how it was named), the shell attaches to it instead of creating a duplicate.
 
 **SSH mouse-tracking reset** (added to `~/.zshrc` or `~/.bashrc`):
 ```bash
@@ -374,6 +376,28 @@ macos-titlebar-style = transparent
 The blur + transparency is what makes tmux's `bg=default` pane backgrounds look frosted against the wallpaper.
 
 The config also unbinds Ghostty's default `Ctrl+Tab` / `Ctrl+Shift+Tab` (Ghostty tab switching) so `Ctrl+Alt+Tab` can be used for inner tmux window cycling.
+
+---
+
+## SSH Typing Lag
+
+If keystrokes feel laggy when working inside tmux over SSH, the tmux side is already tuned: `escape-time 0` and `focus-events on` are set in the server scope by tmux-zengarden (so there is no ESC-meta wait, and pane/app focus events still flow through). Any remaining lag is network latency between local Ghostty and the remote shell.
+
+What helps further (configure on your local Mac, not the remote):
+
+1. **SSH ControlMaster** — reuses a single TCP/encryption channel across all connections to the same host. Add to `~/.ssh/config`:
+   ```
+   Host *
+     ControlMaster auto
+     ControlPath ~/.ssh/cm-%r@%h:%p
+     ControlPersist 10m
+     ServerAliveInterval 30
+     ServerAliveCountMax 3
+   ```
+   First SSH to a host pays the handshake cost; subsequent connections (including the ones tmux opens for new windows) reuse the existing channel.
+2. **TCP keepalive** — `ServerAliveInterval 30` above also prevents idle-disconnects that look like sudden lag spikes.
+3. **Compression** — only useful on slow links; on a LAN it adds CPU cost without benefit. Add `Compression yes` per-host if needed.
+4. **Avoid double-nested status bars** — if you SSH from a remote tmux back into another tmux, every keystroke crosses two status-redraw paths. Use F12 REMOTE mode or the Ctrl-key inner layer instead of opening yet another wrapping tmux.
 
 ---
 

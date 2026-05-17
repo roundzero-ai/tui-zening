@@ -409,6 +409,19 @@ patch_rc() {
     fi
 }
 
+# Remove a previously-installed multi-line block delimited by its comment header
+# line through the first standalone `fi`. Used to migrate retired blocks.
+remove_rc_block() {
+    local header="$1"
+    [[ -f "$RC_FILE" ]] || return 0
+    if grep -qF "$header" "$RC_FILE"; then
+        info "$RC_FILE: removing legacy block '$header'"
+        # sed -i.bak works on both GNU sed and BSD sed (macOS)
+        sed -i.bak "/^${header//\//\\/}\$/,/^fi\$/d" "$RC_FILE"
+        rm -f "${RC_FILE}.bak"
+    fi
+}
+
 # TERM — 256-color over SSH
 patch_rc "TERM=xterm-256color" \
 'export TERM=xterm-256color'
@@ -436,22 +449,28 @@ if [[ -n "$ZSH_AUTOSUGGEST_SOURCE" ]]; then
     patch_rc "zsh-autosuggestions.zsh" "$ZSH_AUTOSUGGEST_SOURCE"
 fi
 
-# tmux auto-attach on Ghostty (local macOS)
-if [[ "$OS" == "Darwin" ]]; then
-    patch_rc 'Main | $(hostname -s)' \
-'# Auto-attach or start tmux when opening a local Ghostty window
-if [ -z "$TMUX" ] && [ "$TERM_PROGRAM" = "ghostty" ]; then
-  _s="Main | $(hostname -s)"
-  tmux attach-session -t "$_s" 2>/dev/null || tmux new-session -s "$_s"
-  unset _s
-fi'
-fi
+# tmux auto-attach: unified behavior for both local Ghostty and SSH sessions
+#
+# Behavior: on entering an interactive Ghostty or SSH shell, attach to any
+# already-live tmux session on this machine. If no session exists, create one
+# named after the short hostname. Single name, single attach rule — no more
+# "Main | ..." vs "RZ-AI | ..." split.
+#
+# Migrate users who installed older versions of this script: drop the two
+# legacy blocks before adding the new unified one.
+remove_rc_block "# Auto-attach or start tmux when opening a local Ghostty window"
+remove_rc_block "# Auto-attach or start tmux on SSH login"
 
-# tmux auto-attach on SSH login (Mac Studio, DGX Spark)
-patch_rc 'new-session -A -s "RZ-AI |' \
-'# Auto-attach or start tmux on SSH login
-if [[ -z "$TMUX" ]] && [[ -n "$SSH_TTY" ]] && [[ $- =~ i ]]; then
-  exec tmux new-session -A -s "RZ-AI | $(hostname -s)"
+patch_rc 'tui_zening: auto-attach tmux' \
+'# tui_zening: auto-attach tmux on interactive Ghostty or SSH shell.
+# Attaches to any existing session if one is live; otherwise starts a new
+# one named after the short hostname.
+if [ -z "$TMUX" ] && [ -t 1 ] && { [ -n "$SSH_TTY" ] || [ "$TERM_PROGRAM" = "ghostty" ]; }; then
+  if tmux ls >/dev/null 2>&1; then
+    exec tmux attach
+  else
+    exec tmux new-session -s "$(hostname -s)"
+  fi
 fi'
 
 # yazi `y` wrapper — changes shell CWD to directory yazi exits in
@@ -494,7 +513,7 @@ echo -e "  ${BOLD}Next steps:${RESET}"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Darwin" ]] && echo "  • Restart Ghostty to apply transparency and font settings"
 [[ "$SKIP_GHOSTTY" == false && "$OS" == "Linux" ]]  && echo "  • Launch Ghostty from your desktop environment"
 echo "  • Reload shell:  source $RC_FILE"
-echo "  • Start tmux:    tmux new -s \"Main | \$(hostname -s)\""
+echo "  • Start tmux:    tmux new -s \"\$(hostname -s)\""
 [[ "$INSTALL_YAZI" == true ]] && echo "  • Launch yazi:   y   (or 'yazi' to skip CWD change on exit)"
 [[ "$INSTALL_YAZI" == true ]] && echo "  • In yazi, press g then l to open lazygit"
 echo ""
