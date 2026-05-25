@@ -73,6 +73,16 @@ fi
 
 info "Detected: $OS / $ARCH / $CURRENT_SHELL → patching $RC_FILE"
 
+# ── Raspberry Pi 4 detection ───────────────────────────────────
+_is_raspi4() {
+    if [[ "$OS" == "Linux" ]] && [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+        if grep -qi "raspberry pi" /proc/device-tree/model 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
 # ── Linux: package manager ────────────────────────────────────
 if [[ "$OS" == "Linux" ]]; then
     if [[ "$EUID" -eq 0 ]]; then
@@ -80,11 +90,15 @@ if [[ "$OS" == "Linux" ]]; then
     else
         command -v sudo &>/dev/null || die "sudo is required on Linux when not running as root."
         SUDO="sudo"
-        if [[ ! -t 0 ]]; then
+        if [[ ! -t 0 ]] && ! _is_raspi4; then
             die "This setup needs sudo but no interactive TTY is available. Re-run in a terminal or run as root."
         fi
-        info "Requesting sudo access..."
-        $SUDO -v
+        # Only pre-cache sudo credentials when a TTY is available (interactive sessions).
+        # On Pi 4 (headless), skip pre-caching; PM_INSTALL calls sudo on-demand per-package.
+        if [[ -t 0 ]]; then
+            info "Requesting sudo access..."
+            $SUDO -v
+        fi
     fi
 
     export DEBIAN_FRONTEND=noninteractive
@@ -224,7 +238,9 @@ if [[ "$SKIP_FONTS" == false ]]; then
             mkdir -p "$FONT_DIR"
             curl -fL "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz" \
                 | tar -xJ -C "$FONT_DIR"
-            fc-cache -fv "$FONT_DIR" &>/dev/null
+            if command -v fc-cache &>/dev/null; then
+                fc-cache -fv "$FONT_DIR" &>/dev/null
+            fi
             info "Font installed → $FONT_DIR"
         fi
     else
@@ -250,18 +266,26 @@ if [[ "$SKIP_GHOSTTY" == false ]]; then
         mkdir -p "$GHOSTTY_CONF_DIR"
     else
         # Linux: try package manager first, then snap
+        # Skip if headless Pi 4 — no sudo TTY available for PM or snap
         if ! command -v ghostty &>/dev/null; then
-            info "Trying official Ghostty package..."
-            if $PM_INSTALL ghostty 2>/dev/null && command -v ghostty &>/dev/null; then
-                success "Ghostty installed via package manager."
-            elif command -v snap &>/dev/null; then
-                info "Package manager failed — trying snap..."
-                $SUDO snap install ghostty --classic
-                success "Ghostty installed via snap."
-            else
-                warn "Ghostty not available — skipping."
+            # On headless Pi 4: skip PM/snap entirely (no sudo TTY available)
+            if [[ ! -t 0 ]] && _is_raspi4; then
+                warn "Ghostty not available on headless Pi 4 (no sudo TTY) — skipping."
                 warn "Install manually: https://ghostty.org/docs/install/binary"
                 SKIP_GHOSTTY=true
+            else
+                info "Trying official Ghostty package..."
+                if $PM_INSTALL ghostty 2>/dev/null && command -v ghostty &>/dev/null; then
+                    success "Ghostty installed via package manager."
+                elif command -v snap &>/dev/null && [[ -t 0 || "$EUID" -eq 0 ]]; then
+                    info "Package manager failed — trying snap..."
+                    $SUDO snap install ghostty --classic
+                    success "Ghostty installed via snap."
+                else
+                    warn "Ghostty not available — skipping."
+                    warn "Install manually: https://ghostty.org/docs/install/binary"
+                    SKIP_GHOSTTY=true
+                fi
             fi
         else
             info "Ghostty — already installed."
@@ -332,9 +356,18 @@ if [[ "$INSTALL_YAZI" == true ]]; then
                 *) die "Unsupported arch for yazi binary: $ARCH. See https://github.com/sxyazi/yazi" ;;
             esac
             YAZI_TMP="$(mktemp -d)"
-            curl -fL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${YAZI_ARCH}.zip" \
-                -o "$YAZI_TMP/yazi.zip"
-            unzip -q "$YAZI_TMP/yazi.zip" -d "$YAZI_TMP"
+            if command -v unzip &>/dev/null; then
+                info "Downloading yazi (zip)..."
+                curl -fL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${YAZI_ARCH}.zip" \
+                    -o "$YAZI_TMP/yazi.zip"
+                unzip -q "$YAZI_TMP/yazi.zip" -d "$YAZI_TMP"
+            else
+                # Pi 4 without unzip: try tar.gz variant
+                info "Downloading yazi (tar.gz — unzip not available)..."
+                curl -fL "https://github.com/sxyazi/yazi/releases/latest/download/yazi-${YAZI_ARCH}.tar.gz" \
+                    -o "$YAZI_TMP/yazi.tar.gz"
+                tar -xzf "$YAZI_TMP/yazi.tar.gz" -C "$YAZI_TMP"
+            fi
             mkdir -p "$HOME/.local/bin"
             cp "$YAZI_TMP/yazi-${YAZI_ARCH}/yazi" "$HOME/.local/bin/yazi"
             chmod +x "$HOME/.local/bin/yazi"
