@@ -1,0 +1,16 @@
+# tui_zening fleet — machine list template
+#
+# Copy to machines.local (gitignored) and fill in your hosts:
+#     cp machines.example machines.local
+#
+# Format: one machine per line
+#     <ssh-target> [setup.sh flags...]
+#
+# <ssh-target> is anything ssh accepts: an ~/.ssh/config alias,
+# user@host, or user@ip. Flags are passed straight to setup.sh.
+#
+# Examples:
+#mac-studio --headless
+#user@dgx-spark --headless --yazi
+#user@192.168.1.50 --headless
+#pi@raspberrypi --headless

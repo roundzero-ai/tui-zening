@@ -11,6 +11,16 @@ Installs and configures:
 
 ## Quick Start
 
+One-liner on a fresh machine (clones to `~/Workspace/tui-zening`, then runs setup):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/roundzero-ai/tui-zening/main/bootstrap.sh | bash
+# headless server:
+curl -fsSL https://raw.githubusercontent.com/roundzero-ai/tui-zening/main/bootstrap.sh | bash -s -- --headless
+```
+
+Or manually:
+
 ```bash
 git clone https://github.com/roundzero-ai/tui-zening.git
 cd tui-zening
@@ -28,7 +38,7 @@ source ~/.bashrc   # Linux (bash)
 ## Options
 
 ```
-bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi]
+bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi] [--local] [--dry-run]
 ```
 
 | Flag | Effect |
@@ -37,6 +47,8 @@ bash setup.sh [--headless] [--no-ghostty] [--no-fonts] [--yazi]
 | `--no-ghostty` | Skip Ghostty installation and config deployment |
 | `--no-fonts` | Skip JetBrainsMono Nerd Font installation |
 | `--yazi` | Install [yazi](https://github.com/sxyazi/yazi) + [lazygit](https://github.com/jesseduffield/lazygit), deploy yazi config to `~/.config/yazi/`, add `y` shell wrapper, and add in-yazi `g l` lazygit shortcut (opt-in) |
+| `--local` | Use a sibling `../tmux-zengarden` checkout instead of the GitHub cache — for testing unpushed tmux-zengarden changes end-to-end |
+| `--dry-run` | Report every install/deploy/RC-patch that would happen without changing anything |
 
 ---
 
@@ -66,10 +78,9 @@ SSH-only headless setup:
 bash setup.sh --headless
 ```
 
-Or deploy from your MacBook:
+Or deploy from your MacBook (see also [Fleet Sync](#fleet-sync)):
 ```bash
-rsync -av tui-zening/ mac-studio:~/tui-zening/
-ssh mac-studio "bash ~/tui-zening/setup.sh --headless"
+ssh mac-studio "curl -fsSL https://raw.githubusercontent.com/roundzero-ai/tui-zening/main/bootstrap.sh | bash -s -- --headless"
 ```
 
 ### DGX Spark GB10 (Ubuntu, bash)
@@ -199,140 +210,21 @@ The tmux config is sourced from **[roundzero-ai/tmux-zengarden](https://github.c
 
 ### Key Bindings
 
-This setup has three layers:
+The **canonical keybinding reference** — outer tmux, the inner Ctrl-key layer for
+nested tmux, and the Ghostty single-keystroke shortcuts — lives in
+**[tmux-zengarden's README](https://github.com/roundzero-ai/tmux-zengarden#key-bindings)**.
+That repo owns the entire keymap (`tmux.conf` + `ghostty-keys.conf`); this repo
+only deploys it. The tables are intentionally not duplicated here.
 
-- `outer tmux`: your local tmux session in Ghostty
-- `inner tmux`: the nested tmux session, usually on an SSH host
-- `Ghostty shortcut layer`: optional terminal shortcuts that skip the outer prefix for selected actions
+The 30-second version:
 
-#### Outer tmux
+- Prefix is `Ctrl+Space`; pane nav `Alt+h/j/k/l`; windows `Alt+1..9` / `Alt+Tab`.
+- `Alt+<key>` in Ghostty = `prefix + <key>` on the **outer** tmux.
+- `Ctrl+Alt+<key>` in Ghostty targets the **inner** (SSH) tmux without leaving local control.
+- `F12` toggles full REMOTE passthrough to the inner tmux.
 
-Core controls:
-
-| Action | Key |
-|---|---|
-| Prefix | `Ctrl+Space` |
-| Toggle nested passthrough | `F12` |
-| Reload config | `prefix + r` |
-| Copy mode | `prefix + [` -> `v` select -> `y` yank |
-
-Panes:
-
-| Action | Key |
-|---|---|
-| Move focus | `Alt+h/j/k/l` or `prefix + h/j/k/l` |
-| Resize coarse | `prefix + ←/↓/↑/→` |
-| Split horizontal | `prefix + \` |
-| Split vertical | `prefix + -` |
-| Bottom pane 25% | `prefix + =` |
-| Right pane 33% | `prefix + /` |
-| Swap pane down / up | `prefix + .` / `prefix + ,` |
-| Zoom pane | `prefix + z` |
-| Close pane | `prefix + x` |
-
-Windows:
-
-| Action | Key |
-|---|---|
-| New window | `prefix + c` |
-| Select window 1..9 | `Alt+1..9` |
-| Next window | `Alt+Tab` |
-| Swap window left / right | `prefix + p` / `prefix + n` |
-
-#### Inner tmux - Ctrl-key layer
-
-Use this when you want to control the inner tmux session **without** enabling `F12` REMOTE mode.
-
-Rule of thumb:
-
-- prefix-free inner actions use `Ctrl+Alt+...`
-- prefix-based inner actions use outer `Ctrl+Space`, then the matching `Ctrl+...` key
-- plain keys after prefix still target the outer tmux session
-
-Prefix-free inner actions:
-
-| Action | Key |
-|---|---|
-| Move inner pane focus | `Ctrl+Alt+h/j/k/l` |
-| Select inner window 1..9 | `Ctrl+Alt+1..9` |
-| Next inner window | `Ctrl+Alt+Tab` |
-
-Prefix-based inner actions after outer `Ctrl+Space`:
-
-| Action | Key after prefix |
-|---|---|
-| New inner window | `Ctrl+c` |
-| Close inner pane | `Ctrl+x` |
-| Toggle inner zoom | `Ctrl+z` |
-| Reload inner config | `Ctrl+r` |
-| Inner split horizontal | `Ctrl+\` |
-| Inner split vertical | `Ctrl+-` |
-| Inner bottom pane 25% | `Ctrl+=` |
-| Inner right pane 33% | `Ctrl+/` |
-| Swap inner pane down / up | `Ctrl+.` / `Ctrl+,` |
-| Swap inner window left / right | `Ctrl+p` / `Ctrl+n` |
-| Resize inner pane coarse | `Ctrl+←/↓/↑/→` |
-| Inner copy mode | `Ctrl+[` |
-
-How it works:
-
-- `prefix + c` acts on outer tmux
-- `prefix + Ctrl+c` forwards `prefix + c` to inner tmux
-- this keeps both layers usable at the same time
-
-#### Ghostty single-keystroke shortcuts
-
-Ghostty adds a helper layer on top of tmux:
-
-- `Alt+...` skips the prefix for the full outer prefix-based binding set
-- `Ctrl+Alt+...` skips the prefix for selected inner tmux bindings
-- prefix-free inner navigation like `Ctrl+Alt+h/j/k/l` still works natively via tmux extended-keys
-
-| Action | Ghostty shortcut | Equivalent tmux input |
-|---|---|---|
-| Outer split horizontal | `Alt+\` | `prefix + \` |
-| Outer split vertical | `Alt+-` | `prefix + -` |
-| Outer bottom pane 25% | `Alt+=` | `prefix + =` |
-| Outer right pane 33% | `Alt+/` | `prefix + /` |
-| Outer zoom pane | `Alt+z` | `prefix + z` |
-| Outer new window | `Alt+c` | `prefix + c` |
-| Outer close pane | `Alt+x` | `prefix + x` |
-| Outer swap pane down / up | `Alt+.` / `Alt+,` | `prefix + .` / `prefix + ,` |
-| Outer swap window L/R | `Alt+p` / `Alt+n` | `prefix + p` / `prefix + n` |
-| Outer resize coarse | `Alt+←/↓/↑/→` | `prefix + ←/↓/↑/→` |
-| Outer reload config | `Alt+r` | `prefix + r` |
-| Outer copy mode | `Alt+[` | `prefix + [` |
-| Inner select window 1..9 | `Ctrl+Alt+1..9` | `Ctrl+Alt+1..9` |
-| Inner next window | `Ctrl+Alt+Tab` | `Ctrl+Alt+Tab` |
-| Inner new window | `Ctrl+Alt+c` | `prefix + Ctrl+c` |
-| Inner close pane | `Ctrl+Alt+x` | `prefix + Ctrl+x` |
-| Inner zoom toggle | `Ctrl+Alt+z` | `prefix + Ctrl+z` |
-| Inner reload config | `Ctrl+Alt+r` | `prefix + Ctrl+r` |
-| Inner split horizontal | `Ctrl+Alt+\` | `prefix + Ctrl+\` |
-| Inner split vertical | `Ctrl+Alt+-` | `prefix + Ctrl+-` |
-| Inner bottom pane 25% | `Ctrl+Alt+=` | `prefix + Ctrl+=` |
-| Inner right pane 33% | `Ctrl+Alt+/` | `prefix + Ctrl+/` |
-| Inner swap pane down / up | `Ctrl+Alt+.` / `Ctrl+Alt+,` | `prefix + Ctrl+.` / `prefix + Ctrl+,` |
-| Inner copy mode | `Ctrl+Alt+[` | `prefix + Ctrl+[` |
-| Inner swap window L/R | `Ctrl+Alt+p` / `Ctrl+Alt+n` | `prefix + Ctrl+p` / `prefix + Ctrl+n` |
-| Inner resize coarse | `Ctrl+Alt+←/↓/↑/→` | `prefix + Ctrl+←/↓/↑/→` |
-
-Maintenance rules for future updates:
-
-- Treat `tmux-zengarden/tmux.conf` as the source of truth for the key map.
-- Keep the same semantic pattern across all layers: outer tmux, inner tmux, then Ghostty convenience shortcut.
-- Avoid new bindings that require `Shift` for regular use; prefer letters, arrows, and unshifted punctuation.
-- If an outer binding changes and it has an inner equivalent, update the matching `Ctrl+...` inner form too.
-- Keep the full outer Ghostty alias set aligned with prefix-based outer actions: resize, split, pane-layout toggles, zoom, new/close, swaps, reload, and copy mode.
-- If an inner action has a Ghostty shortcut, update `config/ghostty` and this README in the same change.
-- Document tmux-native behavior first; document Ghostty as an optional alias layer second.
-
-F12 REMOTE mode remains the universal fallback when you want all keys to pass straight through to the inner tmux.
-
-Mouse behavior:
-
-- clicking outer tmux window tabs selects outer windows
-- clicking inner tmux window tabs also works from nested sessions (mouse events are forwarded when inner tmux mouse mode is active)
+Ghostty keybindings are deployed as `zengarden-keys.conf` next to the Ghostty
+config (see below) — sourced from `tmux-zengarden/ghostty-keys.conf`.
 
 ---
 
@@ -353,7 +245,7 @@ Prompt shows only what the tmux banner doesn't already display:
 
 > git branch and hostname are intentionally absent — they live in the tmux status bar.
 
-Theme file: `~/.config/oh-my-posh/zengarden.json`
+Theme source: `config/oh-my-posh.json` (this repo) → deployed to `~/.config/oh-my-posh/zengarden.json`
 
 ---
 
@@ -375,7 +267,11 @@ macos-titlebar-style = transparent
 
 The blur + transparency is what makes tmux's `bg=default` pane backgrounds look frosted against the wallpaper.
 
-The config also unbinds Ghostty's default `Ctrl+Tab` / `Ctrl+Shift+Tab` (Ghostty tab switching) so `Ctrl+Alt+Tab` can be used for inner tmux window cycling.
+`config/ghostty` in this repo holds **appearance only**. All keybindings come from
+`tmux-zengarden/ghostty-keys.conf`, deployed alongside as `zengarden-keys.conf` and
+pulled in by the `config-file = ?zengarden-keys.conf` include (the `?` keeps Ghostty
+booting even if the keys file is missing). That file also unbinds Ghostty's default
+`Ctrl+Tab` / `Ctrl+Shift+Tab` so `Ctrl+Alt+Tab` can cycle inner tmux windows.
 
 ---
 
@@ -403,16 +299,44 @@ What helps further (configure on your local Mac, not the remote):
 
 ## Re-running / Updating
 
-All steps are idempotent. To update everything:
+All steps are idempotent. To update one machine:
 
 ```bash
-cd ~/tui-zening
+cd ~/Workspace/tui-zening
 git pull
 bash setup.sh           # full
 bash setup.sh --headless  # headless
 ```
 
 This will pull the latest `tmux-zengarden`, re-deploy configs, and skip already-installed tools.
+
+---
+
+## Fleet Sync
+
+Update every machine in one shot from your Mac:
+
+```bash
+cp machines.example machines.local   # once: list your hosts (gitignored)
+bash sync-fleet.sh                   # all machines
+bash sync-fleet.sh dgx-spark         # only targets matching "dgx-spark"
+```
+
+`machines.local` holds one `<ssh-target> [setup.sh flags...]` per line, e.g.
+`user@mac-studio --headless`. For each host, sync-fleet SSHes in,
+clones-or-pulls `~/Workspace/tui-zening`, and runs `setup.sh` with that host's
+flags. Machines pull from GitHub `main` — push your changes first (the script
+warns if local work hasn't been pushed).
+
+---
+
+## Development
+
+- `bash verify.sh` — the verification gate (syntax, shellcheck, `--dry-run`
+  against a throwaway `$HOME`, repo invariants). CI runs the same script.
+- `bash setup.sh --local --dry-run` — test unpushed `../tmux-zengarden`
+  changes end-to-end without touching your system.
+- Agent workflow and cross-repo rules: see [AGENTS.md](AGENTS.md).
 
 ---
 
@@ -459,16 +383,30 @@ All default yazi bindings (`hjkl`, `q`, `y`/`x`/`p`, `d`, etc.) remain unchanged
 
 ```
 tui-zening/
-├── setup.sh          # main setup script
+├── setup.sh          # orchestrator — flags, ordering, summary
+├── bootstrap.sh      # curl-able first-run entry (clone + setup)
+├── sync-fleet.sh     # update all machines in machines.local via SSH
+├── verify.sh         # verification gate (also run by CI)
+├── machines.example  # template for machines.local (gitignored)
+├── lib/
+│   ├── log.sh        # logging, dry-run helpers, deploy_file
+│   ├── detect.sh     # OS/arch/shell detection, package-manager plumbing
+│   ├── packages.sh   # Homebrew, core tools, oh-my-posh, fonts
+│   ├── ghostty.sh    # Ghostty install + config deploy
+│   ├── zengarden.sh  # tmux-zengarden clone/update/--local + deploy
+│   ├── yazi.sh       # yazi + lazygit (opt-in)
+│   └── rc.sh         # idempotent shell-RC patching
 ├── config/
-│   ├── ghostty       # Ghostty terminal config + inner tmux keybindings
-│   ├── nanorc        # nano editor config
+│   ├── ghostty          # Ghostty appearance config (keybinds live in tmux-zengarden)
+│   ├── oh-my-posh.json  # prompt theme
+│   ├── nanorc           # nano editor config
 │   └── yazi/
 │       ├── yazi.toml    # manager, preview, tasks settings
 │       ├── keymap.toml  # custom keybindings (prepend_keymap)
 │       └── theme.toml   # theme/flavor stub
+├── AGENTS.md         # agent instructions (CLAUDE.md symlinks here)
 └── README.md
 ```
 
-tmux config and oh-my-posh theme:
+tmux config, status scripts, and the full keymap (including Ghostty keybindings):
 → **[roundzero-ai/tmux-zengarden](https://github.com/roundzero-ai/tmux-zengarden)**
