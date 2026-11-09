@@ -336,7 +336,7 @@ warns if local work hasn't been pushed).
   against a throwaway `$HOME`, repo invariants). CI runs the same script.
 - `bash setup.sh --local --dry-run` — test unpushed `../tmux-zengarden`
   changes end-to-end without touching your system.
-- Agent workflow and cross-repo rules: see [AGENTS.md](AGENTS.md).
+- Agent workflow and cross-repo rules: see [CLAUDE.md](CLAUDE.md) (`AGENTS.md` links to it).
 
 ---
 
@@ -404,7 +404,7 @@ tui-zening/
 │       ├── yazi.toml    # manager, preview, tasks settings
 │       ├── keymap.toml  # custom keybindings (prepend_keymap)
 │       └── theme.toml   # theme/flavor stub
-├── AGENTS.md         # agent instructions (CLAUDE.md symlinks here)
+├── CLAUDE.md         # agent instructions (AGENTS.md symlinks here)
 └── README.md
 ```
 

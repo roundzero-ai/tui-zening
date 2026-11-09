@@ -2,14 +2,14 @@
 # ============================================================
 #  tui_zening — verification gate
 #
-#  Must pass before any commit is pushed (see AGENTS.md).
+#  Must pass before any commit is pushed (see CLAUDE.md).
 #  Also run by CI (.github/workflows/verify.yml).
 #
 #  Checks:
 #    1. bash -n syntax check on every shell script
 #    2. shellcheck on every shell script (when installed)
 #    3. setup.sh --dry-run end-to-end against a throwaway $HOME
-#    4. repo invariants (CLAUDE.md symlink, ghostty include line)
+#    4. repo invariants (AGENTS.md symlink, ghostty include line)
 # ============================================================
 
 set -uo pipefail
@@ -70,10 +70,10 @@ fi
 rm -rf "$FAKE_HOME"
 
 echo "==> 4/4 repo invariants"
-if [[ -L CLAUDE.md && "$(readlink CLAUDE.md)" == "AGENTS.md" ]]; then
-    pass "CLAUDE.md is a symlink to AGENTS.md"
+if [[ -L AGENTS.md && "$(readlink AGENTS.md)" == "CLAUDE.md" ]]; then
+    pass "AGENTS.md is a symlink to CLAUDE.md"
 else
-    fail "CLAUDE.md must be a symlink to AGENTS.md"
+    fail "AGENTS.md must be a symlink to CLAUDE.md"
 fi
 if grep -q '^config-file = ?zengarden-keys.conf' config/ghostty; then
     pass "config/ghostty includes zengarden-keys.conf"
